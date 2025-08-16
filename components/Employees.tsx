@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import type { Employee, WorkLog } from '../types';
 import { PayType } from '../types';
 import Card from './shared/Card';
 import Button from './shared/Button';
 import Modal from './shared/Modal';
-import { AddIcon, EditIcon, TrashIcon, CalendarIcon } from './icons/Icons';
+import { AddIcon, EditIcon, TrashIcon, CalendarIcon, ChevronLeftIcon, ChevronRightIcon } from './icons/Icons';
 import EmptyState from './shared/EmptyState';
 
 const formatDateShamsi = (isoDate: string): string => {
@@ -36,6 +36,9 @@ const Employees: React.FC<EmployeesProps> = (props) => {
     const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
     const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
     const [editingWorkLog, setEditingWorkLog] = useState<WorkLog | null>(null);
+    
+    const [currentMonth, setCurrentMonth] = useState(new Date());
+    const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
 
     const initialNewEmployeeState: Omit<Employee, 'id'> = { name: '', payType: PayType.HOURLY, dailyRate: 0, hourlyRate: 0, overtimeRate: 0 };
     const [employeeForm, setEmployeeForm] = useState(initialNewEmployeeState);
@@ -52,17 +55,30 @@ const Employees: React.FC<EmployeesProps> = (props) => {
     }, [editingEmployee]);
     
     useEffect(() => {
-        if (editingWorkLog) {
-            setWorkLogForm({
-                date: editingWorkLog.date,
-                overtimeHours: editingWorkLog.overtimeHours,
-                hoursWorked: editingWorkLog.hoursWorked ?? initialWorkLogState.hoursWorked,
-                workedDay: editingWorkLog.workedDay ?? initialWorkLogState.workedDay,
-            });
-        } else {
-            setWorkLogForm(initialWorkLogState);
+        if (isWorkLogManagerOpen && selectedEmployee) {
+            setSelectedDate(new Date().toISOString().split('T')[0]);
+            setCurrentMonth(new Date());
         }
-    }, [editingWorkLog]);
+    }, [isWorkLogManagerOpen, selectedEmployee]);
+
+    useEffect(() => {
+        if (selectedDate && selectedEmployee) {
+            const existingLog = workLogs.find(log => log.employeeId === selectedEmployee.id && log.date === selectedDate);
+            if (existingLog) {
+                setEditingWorkLog(existingLog);
+                setWorkLogForm({
+                    date: existingLog.date,
+                    overtimeHours: existingLog.overtimeHours,
+                    hoursWorked: existingLog.hoursWorked ?? initialWorkLogState.hoursWorked,
+                    workedDay: existingLog.workedDay ?? initialWorkLogState.workedDay,
+                });
+            } else {
+                setEditingWorkLog(null);
+                setWorkLogForm({ ...initialWorkLogState, date: selectedDate });
+            }
+        }
+    }, [selectedDate, selectedEmployee, workLogs]);
+
 
     const openEditModal = (employee: Employee) => {
         setEditingEmployee(employee);
@@ -87,9 +103,9 @@ const Employees: React.FC<EmployeesProps> = (props) => {
 
     const handleWorkLogSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        if (!selectedEmployee) return;
+        if (!selectedEmployee || !selectedDate) return;
 
-        const logData: Omit<WorkLog, 'id' | 'employeeId'> = { date: workLogForm.date, overtimeHours: +workLogForm.overtimeHours };
+        const logData: Omit<WorkLog, 'id' | 'employeeId'> = { date: selectedDate, overtimeHours: +workLogForm.overtimeHours };
         if (selectedEmployee.payType === PayType.HOURLY) {
             logData.hoursWorked = +workLogForm.hoursWorked!;
         } else {
@@ -101,22 +117,80 @@ const Employees: React.FC<EmployeesProps> = (props) => {
         } else {
             onAddWorkLog({ ...logData, employeeId: selectedEmployee.id });
         }
-        setEditingWorkLog(null);
-        setWorkLogForm(initialWorkLogState);
     };
+    
+    const handleDeleteSelectedLog = () => {
+        if (editingWorkLog) {
+            onDeleteWorkLog(editingWorkLog.id);
+        }
+    }
 
     const openWorkLogManager = (employee: Employee) => {
         setSelectedEmployee(employee);
         setIsWorkLogManagerOpen(true);
     };
     
-    const startEditWorkLog = (log: WorkLog) => {
-        setEditingWorkLog(log);
-    }
-    
-    const cancelEditWorkLog = () => {
-        setEditingWorkLog(null);
-        setWorkLogForm(initialWorkLogState);
+    const employeeLogsByDate = useMemo(() => {
+        if (!selectedEmployee) return new Map();
+        const logs = workLogs.filter(l => l.employeeId === selectedEmployee.id);
+        return new Map(logs.map(l => [l.date, l]));
+    }, [workLogs, selectedEmployee]);
+
+    const renderCalendar = () => {
+        const year = currentMonth.getFullYear();
+        const month = currentMonth.getMonth();
+        const monthName = new Intl.DateTimeFormat('fa-IR', { month: 'long', year: 'numeric' }).format(currentMonth);
+
+        const firstDayOfMonth = new Date(year, month, 1);
+        const lastDayOfMonth = new Date(year, month + 1, 0);
+        const daysInMonth = lastDayOfMonth.getDate();
+        const startDayOfWeek = firstDayOfMonth.getDay(); // Sunday: 0, Saturday: 6
+        
+        const offset = (startDayOfWeek + 1) % 7; // Adjust for Saturday start
+
+        const weekDays = ['ش', 'ی', 'د', 'س', 'چ', 'پ', 'ج'];
+        
+        const days = Array.from({ length: offset }, (_, i) => <div key={`empty-${i}`}></div>);
+        
+        for (let day = 1; day <= daysInMonth; day++) {
+            const date = new Date(year, month, day);
+            const isoDate = date.toISOString().split('T')[0];
+            const hasLog = employeeLogsByDate.has(isoDate);
+            const isSelected = isoDate === selectedDate;
+            const isToday = isoDate === new Date().toISOString().split('T')[0];
+            
+            let classes = "p-2 rounded-lg cursor-pointer flex flex-col justify-center items-center h-16 transition-colors duration-200 ";
+            if (isSelected) {
+                classes += "bg-primary text-white";
+            } else if (isToday) {
+                classes += "bg-gray-600/50";
+            } else {
+                classes += "hover:bg-gray-700";
+            }
+            
+            days.push(
+                <div key={day} onClick={() => setSelectedDate(isoDate)} className={classes}>
+                    <span className="font-bold">{day.toLocaleString('fa-IR')}</span>
+                    {hasLog && <div className={`w-2 h-2 rounded-full mt-1 ${isSelected ? 'bg-white' : 'bg-primary'}`}></div>}
+                </div>
+            );
+        }
+
+        return (
+            <div className="flex-grow">
+                <div className="flex justify-between items-center mb-4">
+                    <Button variant="secondary" size="sm" onClick={() => setCurrentMonth(new Date(year, month - 1, 1))} icon={<ChevronRightIcon className="w-4 h-4" />}></Button>
+                    <h3 className="text-lg font-bold">{monthName}</h3>
+                    <Button variant="secondary" size="sm" onClick={() => setCurrentMonth(new Date(year, month + 1, 1))} icon={<ChevronLeftIcon className="w-4 h-4" />}></Button>
+                </div>
+                <div className="grid grid-cols-7 gap-2 text-center text-on-surface-secondary mb-2">
+                    {weekDays.map(d => <div key={d}>{d}</div>)}
+                </div>
+                <div className="grid grid-cols-7 gap-2">
+                    {days}
+                </div>
+            </div>
+        );
     }
 
     return (
@@ -170,40 +244,21 @@ const Employees: React.FC<EmployeesProps> = (props) => {
             </Modal>
 
             {selectedEmployee && (
-                 <Modal title={`مدیریت کارکرد برای ${selectedEmployee.name}`} isOpen={isWorkLogManagerOpen} onClose={() => setIsWorkLogManagerOpen(false)}>
-                    <div className="space-y-6">
-                        <div>
-                            <h3 className="text-lg font-bold mb-2">{editingWorkLog ? "ویرایش کارکرد" : "ثبت کارکرد جدید"}</h3>
-                            <form onSubmit={handleWorkLogSubmit} className="p-4 bg-gray-800 rounded-lg space-y-4">
-                                <div><label htmlFor="date" className="block text-sm font-medium text-on-surface-secondary mb-1">تاریخ</label><input type="date" name="date" id="date" value={workLogForm.date} onChange={e => setWorkLogForm({...workLogForm, date: e.target.value})} className="w-full bg-gray-700 border-gray-600 rounded-md px-3 py-2" required /></div>
+                 <Modal size="lg" title={`مدیریت کارکرد برای ${selectedEmployee.name}`} isOpen={isWorkLogManagerOpen} onClose={() => setIsWorkLogManagerOpen(false)}>
+                    <div className="flex flex-col md:flex-row gap-8">
+                        {renderCalendar()}
+                        <div className="w-full md:w-80 flex-shrink-0">
+                             <h3 className="text-lg font-bold mb-2">کارکرد روز: {formatDateShamsi(selectedDate)}</h3>
+                             <form onSubmit={handleWorkLogSubmit} className="p-4 bg-gray-800 rounded-lg space-y-4">
                                 {selectedEmployee.payType === PayType.HOURLY && (<div><label htmlFor="hoursWorked" className="block text-sm font-medium text-on-surface-secondary mb-1">ساعات کاری</label><input type="number" name="hoursWorked" id="hoursWorked" value={workLogForm.hoursWorked} onChange={e => setWorkLogForm({...workLogForm, hoursWorked: +e.target.value})} className="w-full bg-gray-700 border-gray-600 rounded-md px-3 py-2" required min="0" /></div>)}
                                 {selectedEmployee.payType === PayType.DAILY && (<div><label className="flex items-center"><input type="checkbox" checked={workLogForm.workedDay} onChange={e => setWorkLogForm({...workLogForm, workedDay: e.target.checked})} className="rounded bg-gray-800 border-gray-600 text-primary" /><span className="mr-2 text-on-surface">روز کاری کامل</span></label></div>)}
                                 <div><label htmlFor="overtimeHours" className="block text-sm font-medium text-on-surface-secondary mb-1">ساعات اضافه‌کاری</label><input type="number" name="overtimeHours" id="overtimeHours" value={workLogForm.overtimeHours} onChange={e => setWorkLogForm({...workLogForm, overtimeHours: +e.target.value})} className="w-full bg-gray-700 border-gray-600 rounded-md px-3 py-2" required min="0" /></div>
-                                <div className="flex justify-end space-x-2 space-x-reverse">
-                                    {editingWorkLog && <Button type="button" variant="secondary" onClick={cancelEditWorkLog}>لغو ویرایش</Button>}
+                                <div className="flex justify-between items-center pt-2">
                                     <Button type="submit">{editingWorkLog ? 'ذخیره تغییرات' : 'ثبت کارکرد'}</Button>
+                                    {editingWorkLog && <button type="button" onClick={handleDeleteSelectedLog} className="p-1 text-on-surface-secondary hover:text-red-500"><TrashIcon className="w-5 h-5"/></button>}
                                 </div>
                             </form>
                         </div>
-                        <div>
-                             <h3 className="text-lg font-bold mb-2">کارکردهای ثبت شده</h3>
-                             <div className="max-h-60 overflow-y-auto border border-gray-700 rounded-lg">
-                                <table className="w-full text-right">
-                                    <thead className="sticky top-0 bg-surface"><tr className="border-b border-gray-600"><th className="p-2">تاریخ</th><th className="p-2">کارکرد</th><th className="p-2">اضافه‌کاری</th><th className="p-2">اقدامات</th></tr></thead>
-                                    <tbody>
-                                        {workLogs.filter(l => l.employeeId === selectedEmployee.id).sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(log => (
-                                            <tr key={log.id} className="border-b border-gray-700 hover:bg-gray-600/50">
-                                                <td className="p-2">{formatDateShamsi(log.date)}</td>
-                                                <td className="p-2">{selectedEmployee.payType === PayType.HOURLY ? `${(log.hoursWorked || 0).toLocaleString('fa-IR')} ساعت` : (log.workedDay ? '✓' : '✗')}</td>
-                                                <td className="p-2">{`${log.overtimeHours.toLocaleString('fa-IR')} ساعت`}</td>
-                                                <td className="p-2 flex items-center space-x-1 space-x-reverse"><button onClick={() => startEditWorkLog(log)} className="p-1 text-on-surface-secondary hover:text-primary"><EditIcon className="w-4 h-4"/></button><button onClick={() => onDeleteWorkLog(log.id)} className="p-1 text-on-surface-secondary hover:text-red-500"><TrashIcon className="w-4 h-4"/></button></td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                             </div>
-                        </div>
-                        <div className="mt-6 flex justify-end"><Button type="button" variant="secondary" onClick={() => setIsWorkLogManagerOpen(false)}>بستن</Button></div>
                     </div>
                 </Modal>
             )}

@@ -1,9 +1,10 @@
 import React from 'react';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 import type { SalesOrder, Part, ViewType, Customer } from '../types';
 import { OrderStatus } from '../types';
 import Card from './shared/Card';
 import Button from './shared/Button';
-import { AddIcon, LowStockIcon, MoneyIcon, PendingIcon, ProfitIcon } from './icons/Icons';
+import { AddIcon, LowStockIcon, MoneyIcon, PendingIcon, ProfitIcon, EmployeeIcon } from './icons/Icons';
 
 const formatDateShamsi = (isoDate: string): string => {
     if (!isoDate) return '';
@@ -18,18 +19,29 @@ interface DashboardProps {
     orders: SalesOrder[];
     parts: Part[];
     setView: (view: ViewType) => void;
-    totalRevenue: number;
-    grossProfit: number;
+    financials: {
+        revenue: number;
+        cogs: number;
+        salaries: number;
+        netProfit: number;
+    }
     overdueUnpaidOrders: SalesOrder[];
     customers: Customer[];
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ orders, parts, setView, totalRevenue, grossProfit, overdueUnpaidOrders, customers }) => {
+const Dashboard: React.FC<DashboardProps> = ({ orders, parts, setView, financials, overdueUnpaidOrders, customers }) => {
     const pendingOrders = orders.filter(o => o.status === OrderStatus.PENDING).length;
     
     const lowStockItems = parts.filter(p => p.stock < p.threshold).length;
     
     const customersMap = new Map(customers.map(c => [c.id, c.name]));
+
+    const financialChartData = [
+        { name: 'سود خالص', value: Math.max(0, financials.netProfit) },
+        { name: 'هزینه کالا (COGS)', value: financials.cogs },
+        { name: 'حقوق و دستمزد', value: financials.salaries },
+    ];
+    const COLORS = ['#14b8a6', '#f97316', '#3b82f6'];
 
     return (
         <div>
@@ -42,8 +54,8 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, parts, setView, totalReve
                             <MoneyIcon className="text-green-400" />
                         </div>
                         <div className="mr-4">
-                            <p className="text-sm text-on-surface-secondary">درآمد کل</p>
-                            <p className="text-2xl font-bold text-on-surface">{totalRevenue.toLocaleString('fa-IR')}</p>
+                            <p className="text-sm text-on-surface-secondary">درآمد (تحویل شده)</p>
+                            <p className="text-2xl font-bold text-on-surface">{financials.revenue.toLocaleString('fa-IR')}</p>
                         </div>
                     </div>
                 </Card>
@@ -53,8 +65,8 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, parts, setView, totalReve
                             <ProfitIcon className="text-teal-400" />
                         </div>
                         <div className="mr-4">
-                            <p className="text-sm text-on-surface-secondary">سود ناخالص</p>
-                            <p className="text-2xl font-bold text-on-surface">{grossProfit.toLocaleString('fa-IR')}</p>
+                            <p className="text-sm text-on-surface-secondary">سود خالص</p>
+                            <p className="text-2xl font-bold text-on-surface">{financials.netProfit.toLocaleString('fa-IR')}</p>
                         </div>
                     </div>
                 </Card>
@@ -88,24 +100,38 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, parts, setView, totalReve
                     <div className="flex flex-wrap gap-4">
                         <Button onClick={() => setView('orders')} icon={<AddIcon />}>سفارش جدید</Button>
                         <Button onClick={() => setView('purchases')} icon={<AddIcon />}>خرید جدید</Button>
-                        <Button onClick={() => setView('employees')} icon={<AddIcon />}>مدیریت کارکرد</Button>
+                        <Button onClick={() => setView('employees')} icon={<EmployeeIcon />}>مدیریت کارکرد</Button>
                     </div>
 
                     <div className="mt-10">
-                        <h2 className="text-2xl font-bold mb-4 text-on-surface">فعالیت‌های اخیر</h2>
-                        <Card>
-                             {orders.length > 0 ? (
-                                <ul className="divide-y divide-gray-600">
-                                    {orders.slice(-5).reverse().map(order => (
-                                         <li key={order.id} className="py-3">
-                                            <p className="font-medium">سفارش جدید #{order.id} به مبلغ {order.totalAmount.toLocaleString('fa-IR')} ثبت شد.</p>
-                                            <span className="text-sm text-on-surface-secondary">{formatDateShamsi(order.date)}</span>
-                                        </li>
-                                    ))}
-                                </ul>
-                             ) : (
-                                <p className="text-on-surface-secondary text-center py-4">هنوز فعالیتی ثبت نشده است.</p>
-                             )}
+                        <h2 className="text-2xl font-bold mb-4 text-on-surface">نمای کلی مالی (بر اساس درآمد)</h2 >
+                        <Card className="h-80">
+                            {financials.revenue > 0 ? (
+                            <ResponsiveContainer width="100%" height="100%">
+                                <PieChart>
+                                    <Pie
+                                        data={financialChartData}
+                                        cx="50%"
+                                        cy="50%"
+                                        labelLine={false}
+                                        outerRadius={100}
+                                        fill="#8884d8"
+                                        dataKey="value"
+                                        nameKey="name"
+                                    >
+                                        {financialChartData.map((entry, index) => (
+                                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                        ))}
+                                    </Pie>
+                                    <Tooltip formatter={(value) => [`${Number(value).toLocaleString('fa-IR')}`, '']} contentStyle={{ backgroundColor: '#374151', direction: 'rtl' }} />
+                                    <Legend wrapperStyle={{ direction: 'rtl', paddingTop: '10px' }} />
+                                </PieChart>
+                            </ResponsiveContainer>
+                            ) : (
+                                <div className="flex items-center justify-center h-full">
+                                    <p className="text-on-surface-secondary">داده‌ای برای نمایش نمودار وجود ندارد.</p>
+                                </div>
+                            )}
                         </Card>
                     </div>
                 </div>

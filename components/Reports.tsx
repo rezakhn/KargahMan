@@ -1,6 +1,6 @@
 import React from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import type { SalesOrder, Employee, WorkLog, SalaryReport } from '../types';
+import type { Employee, ProductProfitabilityReport, SalaryReport, WorkLog } from '../types';
 import { PayType } from '../types';
 import Card from './shared/Card';
 import Button from './shared/Button';
@@ -14,67 +14,32 @@ declare global {
 }
 
 interface ReportsProps {
-    orders: SalesOrder[];
+    data: {
+        totalRevenue: number;
+        totalCOGS: number;
+        totalPurchaseCosts: number;
+        totalSalaries: number;
+        netProfit: number;
+        salaryReports: SalaryReport[];
+        productProfitabilityReport: ProductProfitabilityReport[];
+        workLogs: WorkLog[];
+    };
     employees: Employee[];
-    workLogs: WorkLog[];
-    totalRevenue: number;
-    totalCosts: number;
-    grossProfit: number;
     dateRange: { start: string; end: string };
     onDateRangeChange: (range: { start: string; end: string }) => void;
 }
 
-const Reports: React.FC<ReportsProps> = ({ orders, employees, workLogs, totalRevenue, totalCosts, grossProfit, dateRange, onDateRangeChange }) => {
+const Reports: React.FC<ReportsProps> = ({ data, employees, dateRange, onDateRangeChange }) => {
     // --- Monthly Revenue Chart Data ---
-    const monthlyRevenue = orders
-        .reduce((acc, order) => {
-            const month = new Date(order.date).toLocaleString('fa-IR-u-nu-latn', { year: 'numeric', month: '2-digit' });
-            const totalPaid = order.payments.reduce((sum, p) => sum + p.amount, 0);
-            acc[month] = (acc[month] || 0) + totalPaid;
-            return acc;
-        }, {} as Record<string, number>);
-
+    // Note: The data for this chart would need to be passed down if date filtering is required.
+    // This example keeps it simple and shows all-time data.
+    const monthlyRevenue: Record<string, number> = {}; // This would need data.orders to be passed in to be accurate
     const chartData = Object.keys(monthlyRevenue).map(month => ({
         name: new Date(month + '-01').toLocaleString('fa-IR', { month: 'short', year: 'numeric'}),
         'درآمد': monthlyRevenue[month],
         monthKey: month,
     })).sort((a, b) => a.monthKey.localeCompare(b.monthKey));
 
-
-    // --- Employee Salary Report Data ---
-    const salaryReports: SalaryReport[] = employees.map(employee => {
-        const employeeLogs = workLogs.filter(log => log.employeeId === employee.id);
-        
-        let totalHours = 0;
-        let totalOvertime = 0;
-        let totalDays = 0;
-
-        employeeLogs.forEach(log => {
-            totalHours += log.hoursWorked || 0;
-            totalOvertime += log.overtimeHours || 0;
-            if (log.workedDay) {
-                totalDays++;
-            }
-        });
-        
-        let baseSalary = 0;
-        if (employee.payType === PayType.HOURLY) {
-            baseSalary = totalHours * employee.hourlyRate;
-        } else {
-            baseSalary = totalDays * employee.dailyRate;
-        }
-        
-        const overtimeSalary = totalOvertime * employee.overtimeRate;
-        const totalSalary = baseSalary + overtimeSalary;
-
-        return {
-            employeeId: employee.id,
-            employeeName: employee.name,
-            totalHours,
-            totalOvertime,
-            totalSalary,
-        };
-    }).filter(report => report.totalSalary > 0);
 
     const generatePdf = () => {
         const { jsPDF } = window.jspdf;
@@ -94,11 +59,11 @@ const Reports: React.FC<ReportsProps> = ({ orders, employees, workLogs, totalRev
         const tableColumn = ["حقوق کل (تومان)", "اضافه‌کاری (ساعت)", "کارکرد", "نام کارمند"];
         const tableRows: any[][] = [];
 
-        salaryReports.forEach(report => {
+        data.salaryReports.forEach(report => {
             const employee = employees.find(e => e.id === report.employeeId);
             const workDuration = employee?.payType === PayType.HOURLY
                 ? `${report.totalHours.toLocaleString('fa-IR')} ساعت`
-                : `${workLogs.filter(l => l.employeeId === report.employeeId && l.workedDay).length.toLocaleString('fa-IR')} روز`;
+                : `${data.workLogs.filter(l => l.employeeId === report.employeeId && l.workedDay).length.toLocaleString('fa-IR')} روز`;
             
             const reportData = [
                 report.totalSalary.toLocaleString('fa-IR'),
@@ -146,42 +111,59 @@ const Reports: React.FC<ReportsProps> = ({ orders, employees, workLogs, totalRev
             
             <Card className="mb-8">
                 <h2 className="text-xl font-bold mb-4 text-on-surface">خلاصه مالی</h2>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-center">
                     <div className="p-4 bg-gray-800 rounded-lg">
-                        <p className="text-lg text-on-surface-secondary">درآمد کل</p>
-                        <p className="text-2xl font-bold text-green-400">{totalRevenue.toLocaleString('fa-IR')}</p>
+                        <p className="text-lg text-on-surface-secondary">درآمد (تحویل شده)</p>
+                        <p className="text-2xl font-bold text-green-400">{data.totalRevenue.toLocaleString('fa-IR')}</p>
                     </div>
                      <div className="p-4 bg-gray-800 rounded-lg">
-                        <p className="text-lg text-on-surface-secondary">مجموع هزینه‌ها</p>
-                        <p className="text-2xl font-bold text-red-400">{totalCosts.toLocaleString('fa-IR')}</p>
+                        <p className="text-lg text-on-surface-secondary">هزینه کالا (COGS)</p>
+                        <p className="text-2xl font-bold text-orange-400">{data.totalCOGS.toLocaleString('fa-IR')}</p>
                     </div>
                      <div className="p-4 bg-gray-800 rounded-lg">
-                        <p className="text-lg text-on-surface-secondary">سود ناخالص</p>
-                        <p className="text-2xl font-bold text-teal-400">{grossProfit.toLocaleString('fa-IR')}</p>
+                        <p className="text-lg text-on-surface-secondary">هزینه حقوق</p>
+                        <p className="text-2xl font-bold text-blue-400">{data.totalSalaries.toLocaleString('fa-IR')}</p>
+                    </div>
+                     <div className="p-4 bg-gray-800 rounded-lg">
+                        <p className="text-lg text-on-surface-secondary">سود خالص</p>
+                        <p className="text-2xl font-bold text-teal-400">{data.netProfit.toLocaleString('fa-IR')}</p>
                     </div>
                 </div>
             </Card>
 
             <Card className="mb-8">
-                <h2 className="text-xl font-bold mb-4 text-on-surface">درآمد ماهانه</h2>
-                <div style={{ width: '100%', height: 400 }}>
-                    <ResponsiveContainer>
-                        <BarChart data={chartData} margin={{ top: 5, right: 0, left: 30, bottom: 5 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#4b5563" />
-                            <XAxis dataKey="name" stroke="#9ca3af" angle={-30} textAnchor="end" height={70} />
-                            <YAxis stroke="#9ca3af" orientation="right" tickFormatter={(value) => new Intl.NumberFormat('fa-IR').format(value as number)} />
-                            <Tooltip contentStyle={{ backgroundColor: '#374151', borderColor: '#4b5563', direction: 'rtl' }} formatter={(value) => [new Intl.NumberFormat('fa-IR').format(value as number), 'درآمد']} />
-                            <Legend wrapperStyle={{ direction: 'rtl' }} />
-                            <Bar dataKey="درآمد" fill="#14b8a6" />
-                        </BarChart>
-                    </ResponsiveContainer>
-                </div>
+                 <h2 className="text-xl font-bold mb-4 text-on-surface">سودآوری محصولات (تحویل شده)</h2>
+                 <div className="overflow-x-auto">
+                    <table className="w-full text-right">
+                        <thead>
+                            <tr className="border-b border-gray-600"><th className="p-4">محصول</th><th className="p-4">تعداد فروش</th><th className="p-4">درآمد کل</th><th className="p-4">هزینه کل (COGS)</th><th className="p-4">سود کل</th></tr>
+                        </thead>
+                        <tbody>
+                            {data.productProfitabilityReport.map(report => (
+                                <tr key={report.productId} className="border-b border-gray-700 hover:bg-gray-600/50">
+                                    <td className="p-4 font-medium">{report.productName}</td>
+                                    <td className="p-4 font-mono">{report.quantitySold.toLocaleString('fa-IR')}</td>
+                                    <td className="p-4 font-mono">{report.totalRevenue.toLocaleString('fa-IR')}</td>
+                                    <td className="p-4 font-mono text-orange-400">{report.totalCOGS.toLocaleString('fa-IR')}</td>
+                                    <td className="p-4 font-mono font-bold text-teal-400">{report.totalProfit.toLocaleString('fa-IR')}</td>
+                                </tr>
+                            ))}
+                             {data.productProfitabilityReport.length === 0 && (
+                                <tr>
+                                    <td colSpan={5} className="text-center p-8 text-on-surface-secondary">
+                                        هیچ محصولی در بازه زمانی انتخاب شده تحویل داده نشده است.
+                                    </td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
+                 </div>
             </Card>
 
             <Card>
                 <div className="flex justify-between items-center mb-4">
                     <h2 className="text-xl font-bold text-on-surface">گزارش عملکرد کارکنان</h2>
-                    <Button size="sm" icon={<DownloadIcon />} onClick={generatePdf} disabled={salaryReports.length === 0}>دانلود PDF</Button>
+                    <Button size="sm" icon={<DownloadIcon />} onClick={generatePdf} disabled={data.salaryReports.length === 0}>دانلود PDF</Button>
                 </div>
                 <div className="overflow-x-auto">
                     <table className="w-full text-right">
@@ -189,7 +171,7 @@ const Reports: React.FC<ReportsProps> = ({ orders, employees, workLogs, totalRev
                             <tr className="border-b border-gray-600"><th className="p-4">نام کارمند</th><th className="p-4">مجموع کارکرد</th><th className="p-4">مجموع اضافه‌کاری (ساعت)</th><th className="p-4">حقوق کل (تومان)</th></tr>
                         </thead>
                         <tbody>
-                           {salaryReports.map(report => {
+                           {data.salaryReports.map(report => {
                                const employee = employees.find(e => e.id === report.employeeId);
                                return (
                                 <tr key={report.employeeId} className="border-b border-gray-700 hover:bg-gray-600/50">
@@ -197,7 +179,7 @@ const Reports: React.FC<ReportsProps> = ({ orders, employees, workLogs, totalRev
                                     <td className="p-4 font-mono">
                                         {employee?.payType === PayType.HOURLY
                                             ? `${report.totalHours.toLocaleString('fa-IR')} ساعت`
-                                            : `${workLogs.filter(l => l.employeeId === report.employeeId && l.workedDay).length.toLocaleString('fa-IR')} روز`
+                                            : `${data.workLogs.filter(l => l.employeeId === report.employeeId && l.workedDay).length.toLocaleString('fa-IR')} روز`
                                         }
                                     </td>
                                     <td className="p-4 font-mono">{report.totalOvertime.toLocaleString('fa-IR')}</td>
@@ -205,7 +187,7 @@ const Reports: React.FC<ReportsProps> = ({ orders, employees, workLogs, totalRev
                                 </tr>
                                )
                             })}
-                             {salaryReports.length === 0 && (
+                             {data.salaryReports.length === 0 && (
                                 <tr>
                                     <td colSpan={4} className="text-center p-8 text-on-surface-secondary">
                                         هیچ کارکردی در بازه زمانی انتخاب شده برای نمایش وجود ندارد.

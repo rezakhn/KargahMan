@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import type { ViewType, Employee, PurchaseInvoice, Part, SalesOrder, Customer, Supplier, AssemblyOrder, PurchaseItem, OrderItem, WorkLog, Payment, Toast } from './types';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import type { ViewType, Employee, PurchaseInvoice, Part, SalesOrder, Customer, Supplier, AssemblyOrder, PurchaseItem, OrderItem, WorkLog, Payment, Toast, ProductProfitabilityReport, SalaryReport } from './types';
 import { PayType, OrderStatus, AssemblyStatus } from './types';
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
@@ -39,11 +39,13 @@ const App: React.FC = () => {
       {id: 1, employeeId: 1, date: '2023-10-01', hoursWorked: 8, overtimeHours: 2},
       {id: 2, employeeId: 2, date: '2023-10-01', workedDay: true, overtimeHours: 1},
       {id: 3, employeeId: 1, date: '2023-10-02', hoursWorked: 9, overtimeHours: 1},
+      {id: 4, employeeId: 1, date: '2024-05-10', hoursWorked: 8, overtimeHours: 0},
+      {id: 5, employeeId: 2, date: '2024-05-10', workedDay: true, overtimeHours: 2},
   ]);
 
   const [parts, setParts] = useState<Part[]>([
-    { id: 1, name: 'میلگرد فولادی خام', isAssembly: false, stock: 100, threshold: 20 },
-    { id: 2, name: 'پیچ M8', isAssembly: false, stock: 500, threshold: 100 },
+    { id: 1, name: 'میلگرد فولادی خام', isAssembly: false, stock: 100, threshold: 20, cost: 95000 },
+    { id: 2, name: 'پیچ M8', isAssembly: false, stock: 500, threshold: 100, cost: 5000 },
     { id: 3, name: 'قطعه مونتاژی براکت', isAssembly: true, stock: 20, threshold: 5, components: [{ partId: 1, quantity: 2 }, { partId: 2, quantity: 8 }] },
     { id: 4, name: 'محصول نهایی X', isAssembly: true, stock: 10, threshold: 2, components: [{ partId: 3, quantity: 1 }] },
   ]);
@@ -53,8 +55,8 @@ const App: React.FC = () => {
   ]);
 
   const [orders, setOrders] = useState<SalesOrder[]>([
-    { id: 1, customerId: 1, date: '2023-10-15', items: [{productId: 4, quantity: 2, price: 5000000}], totalAmount: 10000000, payments: [{id: 1, amount: 10000000, date: '2023-10-15'}], status: OrderStatus.PAID, deliveryDate: '2023-10-30' },
-    { id: 2, customerId: 2, date: '2023-09-20', items: [{productId: 3, quantity: 10, price: 500000}], totalAmount: 5000000, payments: [], status: OrderStatus.PENDING, deliveryDate: '2023-09-25' },
+    { id: 1, customerId: 1, date: '2024-05-15', items: [{productId: 4, quantity: 2, price: 5000000}], totalAmount: 10000000, payments: [{id: 1, amount: 10000000, date: '2024-05-15'}], status: OrderStatus.DELIVERED, deliveryDate: '2024-05-20', costOfGoodsSold: 460000 },
+    { id: 2, customerId: 2, date: '2024-05-20', items: [{productId: 3, quantity: 10, price: 500000}], totalAmount: 5000000, payments: [{id:1, amount: 5000000, date: '2024-05-20'}], status: OrderStatus.PAID, deliveryDate: '2024-05-25' },
     { id: 3, customerId: 1, date: '2023-08-10', items: [{productId: 3, quantity: 5, price: 500000}], totalAmount: 2500000, payments: [], status: OrderStatus.PENDING, deliveryDate: '2023-08-20' },
   ]);
 
@@ -72,6 +74,29 @@ const App: React.FC = () => {
       { id: 1, name: 'فولاد گستر', contactInfo: 'info@metalsupply.com' },
       { id: 2, name: 'کارخانه قطعات', contactInfo: 'orders@componentfactory.com' },
   ]);
+
+  const partsMap = useMemo(() => new Map(parts.map(p => [p.id, p])), [parts]);
+
+  const calculatePartCost = useCallback((partId: number, visited = new Set<number>()): number => {
+    if (visited.has(partId)) return 0; // Circular dependency check
+    
+    const part = partsMap.get(partId);
+    if (!part) return 0;
+
+    if (!part.isAssembly) {
+      return part.cost || 0;
+    }
+
+    visited.add(partId);
+    const componentsCost = (part.components || []).reduce((sum, component) => {
+      const componentCost = calculatePartCost(component.partId, new Set(visited));
+      return sum + (componentCost * component.quantity);
+    }, 0);
+    visited.delete(partId);
+
+    return componentsCost;
+  }, [partsMap]);
+
 
   // --- UTILITY FUNCTIONS ---
   const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
@@ -140,13 +165,19 @@ const App: React.FC = () => {
     setPurchases(prev => [...prev, newPurchase]);
 
     setParts(prevParts => {
-      const newParts = [...prevParts];
+      const newParts = JSON.parse(JSON.stringify(prevParts));
       newPurchase.items.forEach(item => {
-        const partIndex = newParts.findIndex(p => p.name.toLowerCase() === item.itemName.toLowerCase());
-        if (partIndex > -1) {
-          newParts[partIndex].stock += item.quantity;
+        let part = newParts.find((p: Part) => p.name.toLowerCase() === item.itemName.toLowerCase());
+        if (part) {
+           if (!part.isAssembly) {
+                const oldStock = part.stock;
+                const oldCost = part.cost || 0;
+                const newStock = oldStock + item.quantity;
+                part.cost = newStock > 0 ? ((oldStock * oldCost) + (item.quantity * item.unitPrice)) / newStock : item.unitPrice;
+            }
+            part.stock += item.quantity;
         } else {
-          newParts.push({ id: Date.now(), name: item.itemName, isAssembly: false, stock: item.quantity, threshold: 10 });
+          newParts.push({ id: Date.now(), name: item.itemName, isAssembly: false, stock: item.quantity, threshold: 10, cost: item.unitPrice });
         }
       });
       return newParts;
@@ -155,6 +186,8 @@ const App: React.FC = () => {
   };
   
   const handleEditPurchase = (updatedPurchase: PurchaseInvoice) => {
+    // This function is complex due to inventory and cost reversion. For this app, we simplify by not reverting cost.
+    // A full implementation would require transaction logs.
     const originalPurchase = purchases.find(p => p.id === updatedPurchase.id);
     if (!originalPurchase) return;
 
@@ -174,8 +207,6 @@ const App: React.FC = () => {
         const partIndex = newParts.findIndex((p: Part) => p.name.toLowerCase() === itemName);
         if (partIndex > -1) {
           newParts[partIndex].stock += quantityChange;
-        } else if (quantityChange > 0) {
-           newParts.push({ id: Date.now(), name: itemName, isAssembly: false, stock: quantityChange, threshold: 10 });
         }
       });
       return newParts;
@@ -184,6 +215,7 @@ const App: React.FC = () => {
     setPurchases(prev => prev.map(p => p.id === updatedPurchase.id ? updatedPurchase : p));
     showToast(`فاکتور #${updatedPurchase.id} با موفقیت ویرایش شد.`);
   };
+
 
   const handleDeletePurchase = (purchaseId: number) => {
       showConfirmation('حذف فاکتور خرید', 'آیا از حذف این فاکتور اطمینان دارید؟ (موجودی انبار بازگردانی نخواهد شد)', () => {
@@ -210,6 +242,20 @@ const App: React.FC = () => {
       return;
     }
     
+    // Check stock before delivery
+    for (const item of order.items) {
+        const part = partsMap.get(item.productId);
+        if (!part || part.stock < item.quantity) {
+            showToast(`موجودی "${part?.name || 'محصول'}" برای تحویل این سفارش کافی نیست.`, 'error');
+            return;
+        }
+    }
+    
+    const costOfGoodsSold = order.items.reduce((sum, item) => {
+        const itemCost = calculatePartCost(item.productId);
+        return sum + (itemCost * item.quantity);
+    }, 0);
+
     setParts(prevParts => {
       const newParts = JSON.parse(JSON.stringify(prevParts));
       order.items.forEach(item => {
@@ -221,7 +267,7 @@ const App: React.FC = () => {
       return newParts;
     });
     
-    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: OrderStatus.DELIVERED } : o));
+    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: OrderStatus.DELIVERED, costOfGoodsSold } : o));
     showToast(`سفارش #${orderId} با موفقیت تحویل داده شد.`);
   };
 
@@ -384,7 +430,7 @@ const App: React.FC = () => {
     };
 
     // --- Memoized Data for Reports and Dashboard ---
-    const filteredData = useMemo(() => {
+    const filteredAndCalculatedData = useMemo(() => {
         const { start, end } = reportDateRange;
         const startDate = start ? new Date(start) : null;
         const endDate = end ? new Date(end) : null;
@@ -400,19 +446,77 @@ const App: React.FC = () => {
             return true;
         };
 
-        return {
-            purchases: purchases.filter(filterByDate),
-            orders: orders.filter(filterByDate),
-            workLogs: workLogs.filter(filterByDate),
-        };
-    }, [reportDateRange, purchases, orders, workLogs]);
+        const filteredOrders = orders.filter(filterByDate);
+        const filteredPurchases = purchases.filter(filterByDate);
+        const filteredWorkLogs = workLogs.filter(filterByDate);
+        
+        const deliveredOrders = filteredOrders.filter(o => o.status === OrderStatus.DELIVERED);
 
-  const totalCosts = filteredData.purchases.reduce((sum, p) => sum + p.totalAmount, 0);
-  const totalRevenue = filteredData.orders
-    .filter(o => o.status === OrderStatus.PAID || o.status === OrderStatus.DELIVERED)
-    .reduce((sum, o) => sum + o.totalAmount, 0);
-  const grossProfit = totalRevenue - totalCosts;
-  
+        const totalRevenue = deliveredOrders.reduce((sum, o) => sum + o.totalAmount, 0);
+        const totalCOGS = deliveredOrders.reduce((sum, o) => sum + (o.costOfGoodsSold || 0), 0);
+        const totalPurchaseCosts = filteredPurchases.reduce((sum, p) => sum + p.totalAmount, 0);
+
+        const salaryReports: SalaryReport[] = employees.map(employee => {
+            const employeeLogs = filteredWorkLogs.filter(log => log.employeeId === employee.id);
+            let totalHours = 0, totalOvertime = 0, totalDays = 0;
+            employeeLogs.forEach(log => {
+                totalHours += log.hoursWorked || 0;
+                totalOvertime += log.overtimeHours || 0;
+                if (log.workedDay) totalDays++;
+            });
+            let baseSalary = employee.payType === PayType.HOURLY ? totalHours * employee.hourlyRate : totalDays * employee.dailyRate;
+            const overtimeSalary = totalOvertime * employee.overtimeRate;
+            return {
+                employeeId: employee.id, employeeName: employee.name, totalHours, totalOvertime,
+                totalSalary: baseSalary + overtimeSalary,
+            };
+        });
+        
+        const totalSalaries = salaryReports.reduce((sum, r) => sum + r.totalSalary, 0);
+        const netProfit = totalRevenue - totalCOGS - totalSalaries;
+
+        const productProfitability: ProductProfitabilityReport[] = [];
+        deliveredOrders.forEach(order => {
+            order.items.forEach(item => {
+                const product = partsMap.get(item.productId);
+                if (!product) return;
+                
+                const itemRevenue = item.price * item.quantity;
+                const itemCOGS = calculatePartCost(item.productId) * item.quantity;
+
+                let report = productProfitability.find(p => p.productId === item.productId);
+                if (report) {
+                    report.quantitySold += item.quantity;
+                    report.totalRevenue += itemRevenue;
+                    report.totalCOGS += itemCOGS;
+                    report.totalProfit += (itemRevenue - itemCOGS);
+                } else {
+                    productProfitability.push({
+                        productId: item.productId,
+                        productName: product.name,
+                        quantitySold: item.quantity,
+                        totalRevenue: itemRevenue,
+                        totalCOGS: itemCOGS,
+                        totalProfit: itemRevenue - itemCOGS,
+                    });
+                }
+            });
+        });
+
+        return {
+            orders: filteredOrders,
+            purchases: filteredPurchases,
+            workLogs: filteredWorkLogs,
+            totalRevenue,
+            totalCOGS,
+            totalPurchaseCosts,
+            totalSalaries,
+            netProfit,
+            salaryReports: salaryReports.filter(r => r.totalSalary > 0),
+            productProfitabilityReport: productProfitability
+        };
+    }, [reportDateRange, orders, purchases, workLogs, employees, partsMap, calculatePartCost]);
+    
   const overdueUnpaidOrders = useMemo(() => 
     orders.filter(order => order.status === OrderStatus.PENDING && new Date(order.deliveryDate) < new Date())
   , [orders]);
@@ -424,8 +528,12 @@ const App: React.FC = () => {
             orders={orders} 
             parts={parts} 
             setView={setView} 
-            totalRevenue={orders.reduce((sum, o) => sum + o.totalAmount, 0)} 
-            grossProfit={orders.reduce((sum, o) => sum + o.totalAmount, 0) - purchases.reduce((sum, p) => sum + p.totalAmount, 0)}
+            financials={{
+                revenue: filteredAndCalculatedData.totalRevenue,
+                cogs: filteredAndCalculatedData.totalCOGS,
+                salaries: filteredAndCalculatedData.totalSalaries,
+                netProfit: filteredAndCalculatedData.netProfit
+            }}
             overdueUnpaidOrders={overdueUnpaidOrders}
             customers={customers}
         />;
@@ -443,19 +551,15 @@ const App: React.FC = () => {
       case 'purchases':
         return <Purchases purchases={purchases} onAddPurchase={handleAddPurchase} onEditPurchase={handleEditPurchase} onDeletePurchase={handleDeletePurchase} suppliers={suppliers} />;
       case 'inventory':
-        return <Inventory parts={parts} onAddPart={handleAddPart} onEditPart={handleEditPart} onDeletePart={handleDeletePart} />;
+        return <Inventory parts={parts} onAddPart={handleAddPart} onEditPart={handleEditPart} onDeletePart={handleDeletePart} calculatePartCost={calculatePartCost} />;
       case 'assembly':
         return <Assembly assemblyOrders={assemblyOrders} parts={parts} onAddAssemblyOrder={handleAddAssemblyOrder} onCompleteAssemblyOrder={handleCompleteAssemblyOrder} onDeleteAssemblyOrder={handleDeleteAssemblyOrder} />;
       case 'orders':
         return <Orders orders={orders} onAddOrder={handleAddOrder} onAddPayment={handleAddPayment} onDeleteOrder={handleDeleteOrder} onDeliverOrder={handleDeliverOrder} parts={parts} customers={customers} />;
       case 'reports':
         return <Reports 
-            orders={filteredData.orders} 
+            data={filteredAndCalculatedData}
             employees={employees} 
-            workLogs={filteredData.workLogs} 
-            totalCosts={totalCosts} 
-            grossProfit={grossProfit} 
-            totalRevenue={totalRevenue}
             dateRange={reportDateRange}
             onDateRangeChange={setReportDateRange}
         />;
@@ -477,8 +581,12 @@ const App: React.FC = () => {
             orders={orders} 
             parts={parts} 
             setView={setView} 
-            totalRevenue={orders.reduce((sum, o) => sum + o.totalAmount, 0)} 
-            grossProfit={orders.reduce((sum, o) => sum + o.totalAmount, 0) - purchases.reduce((sum, p) => sum + p.totalAmount, 0)}
+            financials={{
+                revenue: filteredAndCalculatedData.totalRevenue,
+                cogs: filteredAndCalculatedData.totalCOGS,
+                salaries: filteredAndCalculatedData.totalSalaries,
+                netProfit: filteredAndCalculatedData.netProfit
+            }}
             overdueUnpaidOrders={overdueUnpaidOrders}
             customers={customers}
         />;

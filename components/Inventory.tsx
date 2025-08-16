@@ -11,9 +11,10 @@ interface InventoryProps {
     onAddPart: (part: Omit<Part, 'id'>) => void;
     onEditPart: (part: Part) => void;
     onDeletePart: (partId: number) => void;
+    calculatePartCost: (partId: number) => number;
 }
 
-const Inventory: React.FC<InventoryProps> = ({ parts, onAddPart, onEditPart, onDeletePart }) => {
+const Inventory: React.FC<InventoryProps> = ({ parts, onAddPart, onEditPart, onDeletePart, calculatePartCost }) => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingPart, setEditingPart] = useState<Part | null>(null);
 
@@ -22,6 +23,7 @@ const Inventory: React.FC<InventoryProps> = ({ parts, onAddPart, onEditPart, onD
         isAssembly: false,
         stock: 0,
         threshold: 10,
+        cost: 0,
         components: [],
     };
     const [partForm, setPartForm] = useState(initialPartState);
@@ -46,6 +48,7 @@ const Inventory: React.FC<InventoryProps> = ({ parts, onAddPart, onEditPart, onD
             ...partForm,
             stock: Number(partForm.stock),
             threshold: Number(partForm.threshold),
+            cost: Number(partForm.cost),
             components: partForm.isAssembly ? partForm.components : [],
         };
 
@@ -113,7 +116,7 @@ const Inventory: React.FC<InventoryProps> = ({ parts, onAddPart, onEditPart, onD
                                     <th className="p-4">نام قطعه</th>
                                     <th className="p-4">نوع</th>
                                     <th className="p-4">موجودی</th>
-                                    <th className="p-4">نقطه سفارش</th>
+                                    <th className="p-4">هزینه واحد (تومان)</th>
                                     <th className="p-4">وضعیت</th>
                                     <th className="p-4">اقدامات</th>
                                 </tr>
@@ -124,7 +127,7 @@ const Inventory: React.FC<InventoryProps> = ({ parts, onAddPart, onEditPart, onD
                                         <td className="p-4 font-medium">{part.name}</td>
                                         <td className="p-4">{part.isAssembly ? 'مونتاژی/محصول' : 'ماده خام'}</td>
                                         <td className="p-4 font-mono">{part.stock.toLocaleString('fa-IR')}</td>
-                                        <td className="p-4 font-mono">{part.threshold.toLocaleString('fa-IR')}</td>
+                                        <td className="p-4 font-mono">{Math.round(calculatePartCost(part.id)).toLocaleString('fa-IR')}</td>
                                         <td className="p-4">{getStockStatus(part)}</td>
                                         <td className="p-4 flex items-center space-x-2 space-x-reverse">
                                             <button onClick={() => openEditModal(part)} className="p-1 text-on-surface-secondary hover:text-primary"><EditIcon className="w-5 h-5"/></button>
@@ -166,6 +169,13 @@ const Inventory: React.FC<InventoryProps> = ({ parts, onAddPart, onEditPart, onD
                             <input type="number" id="threshold" name="threshold" value={partForm.threshold} onChange={handleFormChange} className="w-full bg-gray-800 border border-gray-600 rounded-md px-3 py-2" required min="0" />
                         </div>
                     </div>
+
+                    {!partForm.isAssembly && (
+                        <div>
+                            <label htmlFor="cost" className="block text-sm font-medium text-on-surface-secondary mb-1">هزینه واحد (تومان)</label>
+                            <input type="number" id="cost" name="cost" value={partForm.cost} onChange={handleFormChange} className="w-full bg-gray-800 border border-gray-600 rounded-md px-3 py-2" required min="0" />
+                        </div>
+                    )}
                     
                     {partForm.isAssembly && (
                         <div className="space-y-2 pt-4 border-t border-gray-600">

@@ -53,6 +53,7 @@ export interface Part {
   isAssembly: boolean;
   stock: number;
   threshold: number;
+  cost?: number; // Added for COGS tracking
   components?: AssemblyComponent[];
 }
 
@@ -103,6 +104,7 @@ export interface SalesOrder {
   payments: Payment[];
   status: OrderStatus;
   deliveryDate: string;
+  costOfGoodsSold?: number; // Added for profit calculation
 }
 
 export interface SalaryReport {
@@ -111,6 +113,15 @@ export interface SalaryReport {
   totalHours: number;
   totalOvertime: number;
   totalSalary: number;
+}
+
+export interface ProductProfitabilityReport {
+    productId: number;
+    productName: string;
+    quantitySold: number;
+    totalRevenue: number;
+    totalCOGS: number;
+    totalProfit: number;
 }
 
 export type Toast = {

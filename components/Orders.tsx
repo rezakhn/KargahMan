@@ -4,7 +4,7 @@ import { OrderStatus } from '../types';
 import Card from './shared/Card';
 import Button from './shared/Button';
 import Modal from './shared/Modal';
-import { AddIcon, TrashIcon, LowStockIcon, DocumentTextIcon, TruckIcon } from './icons/Icons';
+import { AddIcon, TrashIcon, LowStockIcon, DocumentTextIcon, TruckIcon, EyeIcon } from './icons/Icons';
 import EmptyState from './shared/EmptyState';
 
 const formatDateShamsi = (isoDate: string): string => {
@@ -29,7 +29,7 @@ interface OrdersProps {
 const Orders: React.FC<OrdersProps> = ({ orders, onAddOrder, onAddPayment, onDeleteOrder, onDeliverOrder, parts, customers }) => {
     const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
-    const [isPaymentsHistoryModalOpen, setIsPaymentsHistoryModalOpen] = useState(false);
+    const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
     const [selectedOrder, setSelectedOrder] = useState<SalesOrder | null>(null);
 
     // Order Form State
@@ -41,6 +41,7 @@ const Orders: React.FC<OrdersProps> = ({ orders, onAddOrder, onAddPayment, onDel
     const [paymentAmount, setPaymentAmount] = useState(0);
     
     const partsMap = useMemo(() => new Map(parts.map(p => [p.id, p])), [parts]);
+    const customersMap = useMemo(() => new Map(customers.map(c => [c.id, c.name])), [customers]);
 
     const getStatusChip = (status: OrderStatus) => {
         const styles = {
@@ -58,11 +59,6 @@ const Orders: React.FC<OrdersProps> = ({ orders, onAddOrder, onAddPayment, onDel
         const newItems = [...items];
         const updatedItem = { ...newItems[index], [field]: value };
         
-        if (field === 'productId') {
-            const product = partsMap.get(Number(value));
-            updatedItem.price = product ? (product.stock * 1000) : 0; // Example pricing
-        }
-
         newItems[index] = updatedItem;
         setItems(newItems);
     };
@@ -105,9 +101,9 @@ const Orders: React.FC<OrdersProps> = ({ orders, onAddOrder, onAddPayment, onDel
         setIsPaymentModalOpen(true);
     };
     
-    const openPaymentsHistoryModal = (order: SalesOrder) => {
+    const openDetailsModal = (order: SalesOrder) => {
         setSelectedOrder(order);
-        setIsPaymentsHistoryModalOpen(true);
+        setIsDetailsModalOpen(true);
     }
     
     const handlePaymentSubmit = (e: React.FormEvent) => {
@@ -126,20 +122,8 @@ const Orders: React.FC<OrdersProps> = ({ orders, onAddOrder, onAddPayment, onDel
         if (!product) return "محصول یافت نشد";
 
         if (product.stock >= quantity) return null;
-
-        if (product.isAssembly && product.components) {
-            const neededForAssembly = quantity - product.stock;
-            for (const component of product.components) {
-                const componentPart = partsMap.get(component.partId);
-                const requiredComponents = component.quantity * neededForAssembly;
-                if (!componentPart || componentPart.stock < requiredComponents) {
-                    return `کسری مواد اولیه: ${componentPart?.name || 'ناشناس'}`;
-                }
-            }
-            return null;
-        }
         
-        return `موجودی ناکافی`;
+        return `موجودی ناکافی (موجود: ${product.stock})`;
     };
 
     return (
@@ -171,12 +155,12 @@ const Orders: React.FC<OrdersProps> = ({ orders, onAddOrder, onAddPayment, onDel
                                     <tr key={order.id} className="border-b border-gray-700 hover:bg-gray-600/50">
                                         <td className="p-4 font-medium">#{order.id}</td>
                                         <td className="p-4">{formatDateShamsi(order.date)}</td>
-                                        <td className="p-4">{customers.find(c => c.id === order.customerId)?.name || 'ناشناس'}</td>
+                                        <td className="p-4">{customersMap.get(order.customerId) || 'ناشناس'}</td>
                                         <td className="p-4">{order.totalAmount.toLocaleString('fa-IR')}</td>
                                         <td className="p-4">{totalPaid(order).toLocaleString('fa-IR')}</td>
                                         <td className="p-4">{getStatusChip(order.status)}</td>
                                         <td className="p-4 flex items-center space-x-2 space-x-reverse flex-wrap gap-2">
-                                            <button onClick={() => openPaymentsHistoryModal(order)} className="p-1 text-on-surface-secondary hover:text-primary" title="مشاهده پرداخت‌ها"><DocumentTextIcon className="w-5 h-5"/></button>
+                                            <button onClick={() => openDetailsModal(order)} className="p-1 text-on-surface-secondary hover:text-primary" title="مشاهده جزئیات"><EyeIcon className="w-5 h-5"/></button>
                                             <button onClick={() => onDeleteOrder(order.id)} className="p-1 text-on-surface-secondary hover:text-red-500" title="حذف سفارش"><TrashIcon className="w-5 h-5"/></button>
                                             {order.status === OrderStatus.PENDING && (
                                                 <Button size="sm" onClick={() => openPaymentModal(order)}>افزودن پرداخت</Button>
@@ -271,30 +255,45 @@ const Orders: React.FC<OrdersProps> = ({ orders, onAddOrder, onAddPayment, onDel
             )}
             
             {selectedOrder && (
-                 <Modal title={`تاریخچه پرداخت‌های سفارش #${selectedOrder.id}`} isOpen={isPaymentsHistoryModalOpen} onClose={() => setIsPaymentsHistoryModalOpen(false)}>
-                    <div className="space-y-4">
-                        <table className="w-full text-right">
-                           <thead>
-                               <tr className="border-b border-gray-600">
-                                   <th className="p-2">تاریخ</th>
-                                   <th className="p-2">مبلغ (تومان)</th>
-                               </tr>
-                           </thead>
-                           <tbody>
-                               {selectedOrder.payments.map(payment => (
-                                   <tr key={payment.id} className="border-b border-gray-700">
-                                       <td className="p-2">{formatDateShamsi(payment.date)}</td>
-                                       <td className="p-2 font-mono">{payment.amount.toLocaleString('fa-IR')}</td>
-                                   </tr>
-                               ))}
-                               <tr className="font-bold">
-                                   <td className="p-2">جمع کل</td>
-                                   <td className="p-2 font-mono">{totalPaid(selectedOrder).toLocaleString('fa-IR')}</td>
-                               </tr>
-                           </tbody>
-                        </table>
+                 <Modal title={`جزئیات سفارش #${selectedOrder.id}`} isOpen={isDetailsModalOpen} onClose={() => setIsDetailsModalOpen(false)}>
+                    <div className="space-y-6">
+                       <div>
+                            <h3 className="text-lg font-bold mb-2 text-primary">اطلاعات کلی</h3>
+                            <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                                <p><strong className="text-on-surface-secondary">مشتری:</strong> {customersMap.get(selectedOrder.customerId) || 'ناشناس'}</p>
+                                <p><strong className="text-on-surface-secondary">تاریخ سفارش:</strong> {formatDateShamsi(selectedOrder.date)}</p>
+                                <p><strong className="text-on-surface-secondary">تاریخ تحویل:</strong> {formatDateShamsi(selectedOrder.deliveryDate)}</p>
+                                <p><strong className="text-on-surface-secondary">وضعیت:</strong> {getStatusChip(selectedOrder.status)}</p>
+                            </div>
+                       </div>
+                        
+                       <div>
+                            <h3 className="text-lg font-bold mb-2 text-primary">اقلام سفارش</h3>
+                            <ul className="divide-y divide-gray-700">
+                                {selectedOrder.items.map(item => (
+                                    <li key={item.productId} className="py-2 flex justify-between items-center text-sm">
+                                        <span>{partsMap.get(item.productId)?.name}</span>
+                                        <span className="font-mono text-on-surface-secondary">{item.quantity.toLocaleString('fa-IR')} عدد × {item.price.toLocaleString('fa-IR')}</span>
+                                    </li>
+                                ))}
+                            </ul>
+                       </div>
+
+                       <div>
+                            <h3 className="text-lg font-bold mb-2 text-primary">مالی و سودآوری</h3>
+                            <div className="space-y-1 text-sm">
+                                <div className="flex justify-between"><span className="text-on-surface-secondary">درآمد کل:</span> <span className="font-mono">{selectedOrder.totalAmount.toLocaleString('fa-IR')}</span></div>
+                                <div className="flex justify-between"><span className="text-on-surface-secondary">پرداخت شده:</span> <span className="font-mono">{totalPaid(selectedOrder).toLocaleString('fa-IR')}</span></div>
+                                {selectedOrder.costOfGoodsSold !== undefined && (
+                                    <>
+                                        <div className="flex justify-between border-t border-gray-600 pt-2 mt-2"><span className="text-on-surface-secondary">هزینه کالا (COGS):</span> <span className="font-mono text-red-400">-{selectedOrder.costOfGoodsSold.toLocaleString('fa-IR')}</span></div>
+                                        <div className="flex justify-between font-bold"><span className="text-on-surface">سود سفارش:</span> <span className="font-mono text-teal-400">{(selectedOrder.totalAmount - selectedOrder.costOfGoodsSold).toLocaleString('fa-IR')}</span></div>
+                                    </>
+                                )}
+                            </div>
+                       </div>
                         <div className="mt-6 flex justify-end">
-                            <Button type="button" variant="secondary" onClick={() => setIsPaymentsHistoryModalOpen(false)}>بستن</Button>
+                            <Button type="button" variant="secondary" onClick={() => setIsDetailsModalOpen(false)}>بستن</Button>
                         </div>
                     </div>
                 </Modal>

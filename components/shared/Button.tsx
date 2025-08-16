@@ -1,7 +1,7 @@
 import React from 'react';
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  children: React.ReactNode;
+  children?: React.ReactNode;
   variant?: 'primary' | 'secondary' | 'danger';
   size?: 'sm' | 'md';
   icon?: React.ReactNode;
@@ -26,7 +26,7 @@ const Button: React.FC<ButtonProps> = ({ children, variant = 'primary', size = '
       className={`${baseStyles} ${variantStyles[variant]} ${sizeStyles[size]}`}
       {...props}
     >
-      {icon && <span className="w-5 h-5 ml-2">{icon}</span>}
+      {icon && <span className={`w-5 h-5 ${children ? 'ml-2' : ''}`}>{icon}</span>}
       {children}
     </button>
   );
