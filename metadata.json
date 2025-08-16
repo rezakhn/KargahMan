@@ -1,0 +1,5 @@
+{
+  "name": "Workshop Manager Pro",
+  "description": "A comprehensive React application to manage a small workshop, including employees, purchases, inventory, assembly, orders, and sales reporting. Built with TypeScript and Tailwind CSS for a modern, responsive user experience.",
+  "requestFramePermissions": []
+}
