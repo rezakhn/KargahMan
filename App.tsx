@@ -1,20 +1,20 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import type { ViewType, Employee, PurchaseInvoice, Part, SalesOrder, Customer, Supplier, AssemblyOrder, PurchaseItem, OrderItem, WorkLog, Payment, Toast, ProductProfitabilityReport, SalaryReport, ProductionLog, Expense, SalaryPayment } from './types';
-import { PayType, OrderStatus, AssemblyStatus } from './types';
-import Sidebar from './components/Sidebar';
-import Dashboard from './components/Dashboard';
-import Employees from './components/Employees';
-import Purchases from './components/Purchases';
-import Inventory from './components/Inventory';
-import Orders from './components/Orders';
-import Reports from './components/Reports';
-import Assembly from './components/Assembly';
-import Settings from './components/Settings';
-import SuppliersCustomers from './components/SuppliersCustomers';
-import Expenses from './components/Expenses';
-import ToastContainer from './components/shared/Toast';
-import ConfirmationModal from './components/shared/ConfirmationModal';
+import type { ViewType, Employee, PurchaseInvoice, Part, SalesOrder, Customer, Supplier, AssemblyOrder, PurchaseItem, OrderItem, WorkLog, Payment, Toast, ProductProfitabilityReport, SalaryReport, ProductionLog, Expense, SalaryPayment } from './types.ts';
+import { PayType, OrderStatus, AssemblyStatus } from './types.ts';
+import Sidebar from './components/Sidebar.tsx';
+import Dashboard from './components/Dashboard.tsx';
+import Employees from './components/Employees.tsx';
+import Purchases from './components/Purchases.tsx';
+import Inventory from './components/Inventory.tsx';
+import Orders from './components/Orders.tsx';
+import Reports from './components/Reports.tsx';
+import Assembly from './components/Assembly.tsx';
+import Settings from './components/Settings.tsx';
+import SuppliersCustomers from './components/SuppliersCustomers.tsx';
+import Expenses from './components/Expenses.tsx';
+import ToastContainer from './components/shared/Toast.tsx';
+import ConfirmationModal from './components/shared/ConfirmationModal.tsx';
 
 declare global {
   interface FileSystemFileHandle {

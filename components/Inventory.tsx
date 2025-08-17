@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import type { Part, AssemblyComponent } from '../types';
-import Card from './shared/Card';
-import Button from './shared/Button';
-import Modal from './shared/Modal';
-import { AddIcon, EditIcon, TrashIcon } from './icons/Icons';
-import EmptyState from './shared/EmptyState';
+import type { Part, AssemblyComponent } from '../types.ts';
+import Card from './shared/Card.tsx';
+import Button from './shared/Button.tsx';
+import Modal from './shared/Modal.tsx';
+import { AddIcon, EditIcon, TrashIcon } from './icons/Icons.tsx';
+import EmptyState from './shared/EmptyState.tsx';
 
 interface InventoryProps {
     parts: Part[];

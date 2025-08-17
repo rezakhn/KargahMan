@@ -1,11 +1,11 @@
 import React, { useState, useMemo } from 'react';
-import type { AssemblyOrder, Part, ProductionLog, Employee } from '../types';
-import { AssemblyStatus, PayType } from '../types';
-import Card from './shared/Card';
-import Button from './shared/Button';
-import Modal from './shared/Modal';
-import { AddIcon, TrashIcon, EyeIcon, ClipboardDocumentListIcon } from './icons/Icons';
-import EmptyState from './shared/EmptyState';
+import type { AssemblyOrder, Part, ProductionLog, Employee } from '../types.ts';
+import { AssemblyStatus, PayType } from '../types.ts';
+import Card from './shared/Card.tsx';
+import Button from './shared/Button.tsx';
+import Modal from './shared/Modal.tsx';
+import { AddIcon, TrashIcon, EyeIcon, ClipboardDocumentListIcon } from './icons/Icons.tsx';
+import EmptyState from './shared/EmptyState.tsx';
 
 const formatDateShamsi = (isoDate: string): string => {
     if (!isoDate) return '';

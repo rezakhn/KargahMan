@@ -1,7 +1,7 @@
 
 import React from 'react';
-import Modal from './Modal';
-import Button from './Button';
+import Modal from './Modal.tsx';
+import Button from './Button.tsx';
 
 interface ConfirmationModalProps {
   isOpen: boolean;

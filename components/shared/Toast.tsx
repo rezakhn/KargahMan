@@ -1,6 +1,6 @@
 import React from 'react';
-import type { Toast as ToastType } from '../../types';
-import { SuccessIcon, ErrorIcon, InfoIcon, CloseIcon } from '../icons/Icons';
+import type { Toast as ToastType } from '../../types.ts';
+import { SuccessIcon, ErrorIcon, InfoIcon, CloseIcon } from '../icons/Icons.tsx';
 
 interface ToastProps {
   toast: ToastType;

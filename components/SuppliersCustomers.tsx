@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import type { Supplier, Customer, SalesOrder, Part } from '../types';
-import { OrderStatus } from '../types';
-import Card from './shared/Card';
-import Button from './shared/Button';
-import Modal from './shared/Modal';
-import EmptyState from './shared/EmptyState';
-import { AddIcon, EditIcon, TrashIcon, ClipboardDocumentListIcon } from './icons/Icons';
+import type { Supplier, Customer, SalesOrder, Part } from '../types.ts';
+import { OrderStatus } from '../types.ts';
+import Card from './shared/Card.tsx';
+import Button from './shared/Button.tsx';
+import Modal from './shared/Modal.tsx';
+import EmptyState from './shared/EmptyState.tsx';
+import { AddIcon, EditIcon, TrashIcon, ClipboardDocumentListIcon } from './icons/Icons.tsx';
 
 const formatDateShamsi = (isoDate: string): string => {
     if (!isoDate) return '';

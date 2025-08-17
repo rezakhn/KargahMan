@@ -1,11 +1,11 @@
 import React, { useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import type { Employee, ProductProfitabilityReport, SalaryReport, WorkLog, SalesOrder } from '../types';
-import { OrderStatus, PayType } from '../types';
-import Card from './shared/Card';
-import Button from './shared/Button';
-import { DownloadIcon } from './icons/Icons';
-import { VazirmatnFont } from './VazirFont';
+import type { Employee, ProductProfitabilityReport, SalaryReport, WorkLog, SalesOrder } from '../types.ts';
+import { OrderStatus, PayType } from '../types.ts';
+import Card from './shared/Card.tsx';
+import Button from './shared/Button.tsx';
+import { DownloadIcon } from './icons/Icons.tsx';
+import { VazirmatnFont } from './VazirFont.ts';
 
 declare global {
   interface Window {

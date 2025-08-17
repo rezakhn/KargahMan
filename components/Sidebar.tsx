@@ -1,6 +1,6 @@
 import React from 'react';
-import type { ViewType } from '../types';
-import { DashboardIcon, EmployeeIcon, InventoryIcon, OrdersIcon, PurchasesIcon, ReportsIcon, WorkshopIcon, AssemblyIcon, SettingsIcon, UsersGroupIcon, DocumentTextIcon } from './icons/Icons';
+import type { ViewType } from '../types.ts';
+import { DashboardIcon, EmployeeIcon, InventoryIcon, OrdersIcon, PurchasesIcon, ReportsIcon, WorkshopIcon, AssemblyIcon, SettingsIcon, UsersGroupIcon, DocumentTextIcon } from './icons/Icons.tsx';
 
 interface SidebarProps {
   view: ViewType;

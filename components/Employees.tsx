@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import type { Employee, WorkLog, SalaryPayment } from '../types';
-import { PayType } from '../types';
-import Card from './shared/Card';
-import Button from './shared/Button';
-import Modal from './shared/Modal';
-import { AddIcon, EditIcon, TrashIcon, CalendarIcon, ChevronLeftIcon, ChevronRightIcon, CalculatorIcon } from './icons/Icons';
-import EmptyState from './shared/EmptyState';
-import { VazirmatnFont } from './VazirFont';
+import type { Employee, WorkLog, SalaryPayment } from '../types.ts';
+import { PayType } from '../types.ts';
+import Card from './shared/Card.tsx';
+import Button from './shared/Button.tsx';
+import Modal from './shared/Modal.tsx';
+import { AddIcon, EditIcon, TrashIcon, CalendarIcon, ChevronLeftIcon, ChevronRightIcon, CalculatorIcon } from './icons/Icons.tsx';
+import EmptyState from './shared/EmptyState.tsx';
+import { VazirmatnFont } from './VazirFont.ts';
 
 declare global {
   interface Window {

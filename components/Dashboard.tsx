@@ -1,10 +1,10 @@
 import React from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
-import type { SalesOrder, Part, ViewType, Customer, Employee } from '../types';
-import { OrderStatus } from '../types';
-import Card from './shared/Card';
-import Button from './shared/Button';
-import { AddIcon, LowStockIcon, MoneyIcon, PendingIcon, ProfitIcon, EmployeeIcon, DocumentTextIcon } from './icons/Icons';
+import type { SalesOrder, Part, ViewType, Customer, Employee } from '../types.ts';
+import { OrderStatus } from '../types.ts';
+import Card from './shared/Card.tsx';
+import Button from './shared/Button.tsx';
+import { AddIcon, LowStockIcon, MoneyIcon, PendingIcon, ProfitIcon, EmployeeIcon, DocumentTextIcon } from './icons/Icons.tsx';
 
 const formatDateShamsi = (isoDate: string): string => {
     if (!isoDate) return '';

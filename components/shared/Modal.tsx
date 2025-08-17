@@ -1,5 +1,5 @@
 import React from 'react';
-import { CloseIcon } from '../icons/Icons';
+import { CloseIcon } from '../icons/Icons.tsx';
 
 interface ModalProps {
   isOpen: boolean;
