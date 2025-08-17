@@ -1,11 +1,18 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import type { Employee, WorkLog } from '../types';
+import type { Employee, WorkLog, SalaryPayment } from '../types';
 import { PayType } from '../types';
 import Card from './shared/Card';
 import Button from './shared/Button';
 import Modal from './shared/Modal';
-import { AddIcon, EditIcon, TrashIcon, CalendarIcon, ChevronLeftIcon, ChevronRightIcon } from './icons/Icons';
+import { AddIcon, EditIcon, TrashIcon, CalendarIcon, ChevronLeftIcon, ChevronRightIcon, CalculatorIcon } from './icons/Icons';
 import EmptyState from './shared/EmptyState';
+import { VazirmatnFont } from './VazirFont';
+
+declare global {
+  interface Window {
+    jspdf: any;
+  }
+}
 
 const formatDateShamsi = (isoDate: string): string => {
     if (!isoDate) return '';
@@ -16,22 +23,242 @@ const formatDateShamsi = (isoDate: string): string => {
     }
 };
 
+interface SalaryModalProps {
+    employee: Employee;
+    workLogs: WorkLog[];
+    salaryPayments: SalaryPayment[];
+    onClose: () => void;
+    onPaySalary: (paymentData: Omit<SalaryPayment, 'id' | 'paymentDate'>) => void;
+}
+
+const SalaryCalculationModal: React.FC<SalaryModalProps> = ({ employee, workLogs, salaryPayments, onClose, onPaySalary }) => {
+    const [dateRange, setDateRange] = useState({ start: '', end: '' });
+
+    useEffect(() => {
+        const today = new Date();
+        const firstDay = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
+        const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0).toISOString().split('T')[0];
+        setDateRange({ start: firstDay, end: lastDay });
+    }, []);
+
+    const salaryData = useMemo(() => {
+        const { start, end } = dateRange;
+        if (!start || !end) return null;
+
+        const startDate = new Date(start);
+        const endDate = new Date(end);
+
+        startDate.setHours(0, 0, 0, 0);
+        endDate.setHours(23, 59, 59, 999);
+
+        const filteredLogs = workLogs.filter(log => {
+            if (log.employeeId !== employee.id) return false;
+            const itemDate = new Date(log.date);
+            return itemDate >= startDate && itemDate <= endDate;
+        });
+
+        let totalHours = 0, totalOvertime = 0, totalDays = 0;
+        filteredLogs.forEach(log => {
+            totalHours += log.hoursWorked || 0;
+            totalOvertime += log.overtimeHours || 0;
+            if (log.workedDay) totalDays++;
+        });
+
+        const baseSalary = employee.payType === PayType.HOURLY
+            ? totalHours * employee.hourlyRate
+            : totalDays * employee.dailyRate;
+        const overtimeSalary = totalOvertime * employee.overtimeRate;
+        const totalSalary = baseSalary + overtimeSalary;
+        
+        const existingPayment = salaryPayments.find(p => p.employeeId === employee.id && p.periodStart === start && p.periodEnd === end);
+
+        return { filteredLogs, baseSalary, overtimeSalary, totalSalary, totalHours, totalDays, isPaid: !!existingPayment, paymentDate: existingPayment?.paymentDate };
+    }, [employee, workLogs, dateRange, salaryPayments]);
+    
+    const employeePaymentHistory = useMemo(() => {
+        return salaryPayments
+            .filter(p => p.employeeId === employee.id)
+            .sort((a,b) => new Date(b.paymentDate).getTime() - new Date(a.paymentDate).getTime());
+    }, [salaryPayments, employee]);
+
+    const handlePrintPayslip = () => {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        
+        doc.addFileToVFS("Vazirmatn-Regular.ttf", VazirmatnFont);
+        doc.addFont("Vazirmatn-Regular.ttf", "Vazirmatn", "normal");
+        doc.setFont("Vazirmatn");
+
+        const formatDate = (date: string) => new Intl.DateTimeFormat('fa-IR').format(new Date(date));
+        
+        doc.text("فیش حقوقی", 105, 20, { align: 'center' });
+        
+        doc.setFontSize(12);
+        doc.text(`نام کارمند: ${employee.name}`, 190, 35, { align: 'right' });
+        doc.text(`بازه زمانی: از ${formatDate(dateRange.start)} تا ${formatDate(dateRange.end)}`, 190, 42, { align: 'right' });
+        
+        doc.line(20, 50, 190, 50);
+
+        doc.text(`حقوق پایه: ${salaryData!.baseSalary.toLocaleString('fa-IR')} تومان`, 190, 60, { align: 'right' });
+        doc.text(`اضافه کاری: ${salaryData!.overtimeSalary.toLocaleString('fa-IR')} تومان`, 190, 67, { align: 'right' });
+        doc.setFontSize(14);
+        doc.text(`جمع کل قابل پرداخت: ${salaryData!.totalSalary.toLocaleString('fa-IR')} تومان`, 190, 76, { align: 'right' });
+        
+        doc.line(20, 85, 190, 85);
+        
+        doc.setFontSize(12);
+        doc.text("جزئیات کارکرد", 105, 95, { align: 'center' });
+
+        const tableColumn = ["توضیحات", "اضافه‌کاری (ساعت)", "کارکرد", "تاریخ"];
+        const tableRows: any[][] = [];
+
+        salaryData!.filteredLogs.forEach(log => {
+            const workValue = employee.payType === PayType.HOURLY
+                ? `${log.hoursWorked || 0} ساعت`
+                : (log.workedDay ? '1 روز' : '0');
+            
+            const logData = [
+                log.description || '-',
+                log.overtimeHours.toLocaleString('fa-IR'),
+                workValue,
+                formatDate(log.date)
+            ];
+            tableRows.push(logData);
+        });
+
+        (doc as any).autoTable({
+            head: [tableColumn],
+            body: tableRows,
+            startY: 100,
+            theme: 'grid',
+            styles: { font: 'Vazirmatn', halign: 'center', cellPadding: 2 },
+            headStyles: { fillColor: [31, 41, 55] }, // gray-800
+            columnStyles: { 0: { halign: 'right' }, 3: { halign: 'right' } }
+        });
+        
+        doc.save(`payslip_${employee.name.replace(' ', '_')}_${dateRange.start}_${dateRange.end}.pdf`);
+    };
+
+    const handlePay = () => {
+        if (!salaryData || salaryData.isPaid || salaryData.totalSalary <= 0) return;
+        onPaySalary({
+            employeeId: employee.id,
+            periodStart: dateRange.start,
+            periodEnd: dateRange.end,
+            baseSalary: salaryData.baseSalary,
+            overtimeSalary: salaryData.overtimeSalary,
+            totalSalary: salaryData.totalSalary,
+        });
+    }
+
+    return (
+        <Modal size="xl" title={`محاسبه حقوق برای ${employee.name}`} isOpen={true} onClose={onClose}>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-2 space-y-6">
+                    <div>
+                        <h3 className="text-lg font-bold mb-2 text-primary">بازه زمانی</h3>
+                        <div className="flex flex-wrap gap-4 items-center p-4 bg-gray-800 rounded-lg">
+                            <div>
+                                <label htmlFor="startDate" className="block text-sm font-medium text-on-surface-secondary mb-1">تاریخ شروع</label>
+                                <input type="date" id="startDate" value={dateRange.start} onChange={e => setDateRange({...dateRange, start: e.target.value})} className="bg-gray-700 border border-gray-600 rounded-md px-3 py-2" />
+                            </div>
+                            <div>
+                                <label htmlFor="endDate" className="block text-sm font-medium text-on-surface-secondary mb-1">تاریخ پایان</label>
+                                <input type="date" id="endDate" value={dateRange.end} onChange={e => setDateRange({...dateRange, end: e.target.value})} className="bg-gray-700 border border-gray-600 rounded-md px-3 py-2" />
+                            </div>
+                        </div>
+                    </div>
+
+                    {salaryData && (
+                        <>
+                            <div>
+                                <h3 className="text-lg font-bold mb-2 text-primary">خلاصه مالی</h3>
+                                <Card className="space-y-2">
+                                    <div className="flex justify-between"><span className="text-on-surface-secondary">حقوق پایه:</span> <span className="font-mono">{salaryData.baseSalary.toLocaleString('fa-IR')} تومان</span></div>
+                                    <div className="flex justify-between"><span className="text-on-surface-secondary">مبلغ اضافه‌کاری:</span> <span className="font-mono">{salaryData.overtimeSalary.toLocaleString('fa-IR')} تومان</span></div>
+                                    <div className="flex justify-between font-bold border-t border-gray-600 pt-2 mt-2"><span className="text-on-surface">حقوق نهایی:</span> <span className="font-mono text-teal-400">{salaryData.totalSalary.toLocaleString('fa-IR')} تومان</span></div>
+                                     {salaryData.isPaid && <p className="text-sm text-green-400 text-center pt-2">پرداخت شده در تاریخ {formatDateShamsi(salaryData.paymentDate!)}</p>}
+                                </Card>
+                            </div>
+                            
+                            <div>
+                                <h3 className="text-lg font-bold mb-2 text-primary">لیست کارکرد</h3>
+                                <div className="max-h-60 overflow-y-auto border border-gray-700 rounded-lg">
+                                    <table className="w-full text-right">
+                                        <thead className="sticky top-0 bg-surface">
+                                            <tr className="border-b border-gray-600"><th className="p-3">تاریخ</th><th className="p-3">کارکرد</th><th className="p-3">اضافه‌کاری (ساعت)</th><th className="p-3">توضیحات</th></tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-gray-700">
+                                            {salaryData.filteredLogs.length > 0 ? salaryData.filteredLogs.map(log => (
+                                                <tr key={log.id} className="hover:bg-gray-800">
+                                                    <td className="p-3">{formatDateShamsi(log.date)}</td>
+                                                    <td className="p-3 font-mono">{employee.payType === PayType.HOURLY ? `${log.hoursWorked || 0} ساعت` : (log.workedDay ? '✓ روز کاری' : '✗')}</td>
+                                                    <td className="p-3 font-mono">{log.overtimeHours.toLocaleString('fa-IR')}</td>
+                                                    <td className="p-3 text-sm text-on-surface-secondary">{log.description || '-'}</td>
+                                                </tr>
+                                            )) : (
+                                                <tr><td colSpan={4} className="text-center p-8 text-on-surface-secondary">هیچ کارکردی در این بازه زمانی ثبت نشده است.</td></tr>
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </>
+                    )}
+                </div>
+
+                <div className="space-y-4">
+                     <h3 className="text-lg font-bold text-primary">سابقه پرداخت‌ها</h3>
+                     <div className="max-h-96 overflow-y-auto border border-gray-700 rounded-lg p-2 space-y-2">
+                        {employeePaymentHistory.length > 0 ? employeePaymentHistory.map(p => (
+                            <div key={p.id} className="p-3 bg-gray-800 rounded-md text-sm">
+                                <p className="font-bold">{p.totalSalary.toLocaleString('fa-IR')} تومان</p>
+                                <p className="text-xs text-on-surface-secondary">بابت: {formatDateShamsi(p.periodStart)} تا {formatDateShamsi(p.periodEnd)}</p>
+                                <p className="text-xs text-on-surface-secondary">تاریخ پرداخت: {formatDateShamsi(p.paymentDate)}</p>
+                            </div>
+                        )) : (
+                            <p className="text-center p-8 text-on-surface-secondary text-sm">سابقه پرداختی وجود ندارد.</p>
+                        )}
+                     </div>
+                </div>
+            </div>
+             <div className="mt-6 flex justify-between items-center">
+                <div>
+                     {salaryData && !salaryData.isPaid && (
+                        <Button onClick={handlePay} disabled={salaryData.totalSalary <= 0}>پرداخت حقوق</Button>
+                    )}
+                </div>
+                <div className="flex justify-end space-x-3 space-x-reverse">
+                    <Button variant="secondary" onClick={onClose}>بستن</Button>
+                    <Button onClick={handlePrintPayslip} disabled={!salaryData || salaryData.filteredLogs.length === 0}>چاپ فیش</Button>
+                </div>
+            </div>
+        </Modal>
+    );
+};
+
+
 interface EmployeesProps {
     employees: Employee[];
     workLogs: WorkLog[];
+    salaryPayments: SalaryPayment[];
     onAddEmployee: (employee: Omit<Employee, 'id'>) => void;
     onEditEmployee: (employee: Employee) => void;
     onDeleteEmployee: (employeeId: number) => void;
     onAddWorkLog: (workLog: Omit<WorkLog, 'id'>) => void;
     onEditWorkLog: (workLog: WorkLog) => void;
     onDeleteWorkLog: (workLogId: number) => void;
+    onPaySalary: (paymentData: Omit<SalaryPayment, 'id' | 'paymentDate'>) => void;
+    employeeIdToManage: number | null;
+    onClearManageEmployee: () => void;
 }
 
 const Employees: React.FC<EmployeesProps> = (props) => {
-    const { employees, workLogs, onAddEmployee, onEditEmployee, onDeleteEmployee, onAddWorkLog, onEditWorkLog, onDeleteWorkLog } = props;
+    const { employees, workLogs, salaryPayments, onAddEmployee, onEditEmployee, onDeleteEmployee, onAddWorkLog, onEditWorkLog, onDeleteWorkLog, onPaySalary, employeeIdToManage, onClearManageEmployee } = props;
     
     const [isEmployeeModalOpen, setIsEmployeeModalOpen] = useState(false);
     const [isWorkLogManagerOpen, setIsWorkLogManagerOpen] = useState(false);
+    const [salaryModalEmployee, setSalaryModalEmployee] = useState<Employee | null>(null);
     
     const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
     const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
@@ -43,8 +270,23 @@ const Employees: React.FC<EmployeesProps> = (props) => {
     const initialNewEmployeeState: Omit<Employee, 'id'> = { name: '', payType: PayType.HOURLY, dailyRate: 0, hourlyRate: 0, overtimeRate: 0 };
     const [employeeForm, setEmployeeForm] = useState(initialNewEmployeeState);
     
-    const initialWorkLogState = { date: new Date().toISOString().split('T')[0], overtimeHours: 0, hoursWorked: 8, workedDay: true };
+    const initialWorkLogState = { date: new Date().toISOString().split('T')[0], overtimeHours: 0, hoursWorked: 8, workedDay: true, description: '' };
     const [workLogForm, setWorkLogForm] = useState(initialWorkLogState);
+    
+    const openWorkLogManager = (employee: Employee) => {
+        setSelectedEmployee(employee);
+        setIsWorkLogManagerOpen(true);
+    };
+
+    useEffect(() => {
+        if (employeeIdToManage) {
+            const employee = employees.find(e => e.id === employeeIdToManage);
+            if (employee) {
+                openWorkLogManager(employee);
+            }
+            onClearManageEmployee();
+        }
+    }, [employeeIdToManage, employees, onClearManageEmployee]);
 
     useEffect(() => {
         if (editingEmployee) {
@@ -71,6 +313,7 @@ const Employees: React.FC<EmployeesProps> = (props) => {
                     overtimeHours: existingLog.overtimeHours,
                     hoursWorked: existingLog.hoursWorked ?? initialWorkLogState.hoursWorked,
                     workedDay: existingLog.workedDay ?? initialWorkLogState.workedDay,
+                    description: existingLog.description || '',
                 });
             } else {
                 setEditingWorkLog(null);
@@ -105,17 +348,20 @@ const Employees: React.FC<EmployeesProps> = (props) => {
         e.preventDefault();
         if (!selectedEmployee || !selectedDate) return;
 
-        const logData: Omit<WorkLog, 'id' | 'employeeId'> = { date: selectedDate, overtimeHours: +workLogForm.overtimeHours };
-        if (selectedEmployee.payType === PayType.HOURLY) {
-            logData.hoursWorked = +workLogForm.hoursWorked!;
-        } else {
-            logData.workedDay = workLogForm.workedDay;
-        }
+        const baseLogData = {
+            date: selectedDate,
+            overtimeHours: +workLogForm.overtimeHours || 0,
+            description: workLogForm.description?.trim() || '',
+        };
 
+        const fullLogData = selectedEmployee.payType === PayType.HOURLY
+            ? { ...baseLogData, hoursWorked: +workLogForm.hoursWorked || 0 }
+            : { ...baseLogData, workedDay: workLogForm.workedDay };
+        
         if (editingWorkLog) {
-            onEditWorkLog({ ...logData, id: editingWorkLog.id, employeeId: selectedEmployee.id });
+            onEditWorkLog({ ...fullLogData, id: editingWorkLog.id, employeeId: selectedEmployee.id });
         } else {
-            onAddWorkLog({ ...logData, employeeId: selectedEmployee.id });
+            onAddWorkLog({ ...fullLogData, employeeId: selectedEmployee.id });
         }
     };
     
@@ -125,11 +371,6 @@ const Employees: React.FC<EmployeesProps> = (props) => {
         }
     }
 
-    const openWorkLogManager = (employee: Employee) => {
-        setSelectedEmployee(employee);
-        setIsWorkLogManagerOpen(true);
-    };
-    
     const employeeLogsByDate = useMemo(() => {
         if (!selectedEmployee) return new Map();
         const logs = workLogs.filter(l => l.employeeId === selectedEmployee.id);
@@ -160,18 +401,22 @@ const Employees: React.FC<EmployeesProps> = (props) => {
             const isToday = isoDate === new Date().toISOString().split('T')[0];
             
             let classes = "p-2 rounded-lg cursor-pointer flex flex-col justify-center items-center h-16 transition-colors duration-200 ";
+            
             if (isSelected) {
                 classes += "bg-primary text-white";
-            } else if (isToday) {
-                classes += "bg-gray-600/50";
             } else {
-                classes += "hover:bg-gray-700";
+                if (hasLog) {
+                    classes += "bg-primary/20 hover:bg-primary/40";
+                } else if (isToday) {
+                    classes += "bg-gray-600/50 hover:bg-gray-600";
+                } else {
+                    classes += "hover:bg-gray-700";
+                }
             }
             
             days.push(
                 <div key={day} onClick={() => setSelectedDate(isoDate)} className={classes}>
                     <span className="font-bold">{day.toLocaleString('fa-IR')}</span>
-                    {hasLog && <div className={`w-2 h-2 rounded-full mt-1 ${isSelected ? 'bg-white' : 'bg-primary'}`}></div>}
                 </div>
             );
         }
@@ -215,8 +460,9 @@ const Employees: React.FC<EmployeesProps> = (props) => {
                                         <td className="p-4">{emp.payType === PayType.DAILY ? `${emp.dailyRate.toLocaleString('fa-IR')} / روز` : `${emp.hourlyRate.toLocaleString('fa-IR')} / ساعت`}</td>
                                         <td className="p-4">{emp.overtimeRate.toLocaleString('fa-IR')} / ساعت</td>
                                         <td className="p-4 flex items-center space-x-2 space-x-reverse flex-wrap gap-2">
-                                            <button onClick={() => openEditModal(emp)} className="p-1 text-on-surface-secondary hover:text-primary"><EditIcon className="w-5 h-5"/></button>
-                                            <button onClick={() => onDeleteEmployee(emp.id)} className="p-1 text-on-surface-secondary hover:text-red-500"><TrashIcon className="w-5 h-5"/></button>
+                                            <button onClick={() => openEditModal(emp)} className="p-1 text-on-surface-secondary hover:text-primary" title="ویرایش"><EditIcon className="w-5 h-5"/></button>
+                                            <button onClick={() => onDeleteEmployee(emp.id)} className="p-1 text-on-surface-secondary hover:text-red-500" title="حذف"><TrashIcon className="w-5 h-5"/></button>
+                                            <button onClick={() => setSalaryModalEmployee(emp)} className="p-1 text-on-surface-secondary hover:text-green-500" title="محاسبه حقوق"><CalculatorIcon className="w-5 h-5"/></button>
                                             <Button size="sm" icon={<CalendarIcon />} onClick={() => openWorkLogManager(emp)}>مدیریت کارکرد</Button>
                                         </td>
                                     </tr>
@@ -250,9 +496,21 @@ const Employees: React.FC<EmployeesProps> = (props) => {
                         <div className="w-full md:w-80 flex-shrink-0">
                              <h3 className="text-lg font-bold mb-2">کارکرد روز: {formatDateShamsi(selectedDate)}</h3>
                              <form onSubmit={handleWorkLogSubmit} className="p-4 bg-gray-800 rounded-lg space-y-4">
-                                {selectedEmployee.payType === PayType.HOURLY && (<div><label htmlFor="hoursWorked" className="block text-sm font-medium text-on-surface-secondary mb-1">ساعات کاری</label><input type="number" name="hoursWorked" id="hoursWorked" value={workLogForm.hoursWorked} onChange={e => setWorkLogForm({...workLogForm, hoursWorked: +e.target.value})} className="w-full bg-gray-700 border-gray-600 rounded-md px-3 py-2" required min="0" /></div>)}
+                                {selectedEmployee.payType === PayType.HOURLY && (<div><label htmlFor="hoursWorked" className="block text-sm font-medium text-on-surface-secondary mb-1">ساعات کاری</label><input type="number" name="hoursWorked" id="hoursWorked" value={workLogForm.hoursWorked} onChange={e => setWorkLogForm({...workLogForm, hoursWorked: +e.target.value})} className="w-full bg-gray-700 border-gray-600 rounded-md px-3 py-2" min="0" /></div>)}
                                 {selectedEmployee.payType === PayType.DAILY && (<div><label className="flex items-center"><input type="checkbox" checked={workLogForm.workedDay} onChange={e => setWorkLogForm({...workLogForm, workedDay: e.target.checked})} className="rounded bg-gray-800 border-gray-600 text-primary" /><span className="mr-2 text-on-surface">روز کاری کامل</span></label></div>)}
-                                <div><label htmlFor="overtimeHours" className="block text-sm font-medium text-on-surface-secondary mb-1">ساعات اضافه‌کاری</label><input type="number" name="overtimeHours" id="overtimeHours" value={workLogForm.overtimeHours} onChange={e => setWorkLogForm({...workLogForm, overtimeHours: +e.target.value})} className="w-full bg-gray-700 border-gray-600 rounded-md px-3 py-2" required min="0" /></div>
+                                <div><label htmlFor="overtimeHours" className="block text-sm font-medium text-on-surface-secondary mb-1">ساعات اضافه‌کاری</label><input type="number" name="overtimeHours" id="overtimeHours" value={workLogForm.overtimeHours} onChange={e => setWorkLogForm({...workLogForm, overtimeHours: +e.target.value})} className="w-full bg-gray-700 border-gray-600 rounded-md px-3 py-2" min="0" /></div>
+                                <div>
+                                    <label htmlFor="description" className="block text-sm font-medium text-on-surface-secondary mb-1">توضیحات (اختیاری)</label>
+                                    <textarea 
+                                        name="description" 
+                                        id="description" 
+                                        rows={3}
+                                        value={workLogForm.description} 
+                                        onChange={e => setWorkLogForm({...workLogForm, description: e.target.value})} 
+                                        className="w-full bg-gray-700 border-gray-600 rounded-md px-3 py-2"
+                                        placeholder="مثال: مرخصی استعلاجی"
+                                    />
+                                </div>
                                 <div className="flex justify-between items-center pt-2">
                                     <Button type="submit">{editingWorkLog ? 'ذخیره تغییرات' : 'ثبت کارکرد'}</Button>
                                     {editingWorkLog && <button type="button" onClick={handleDeleteSelectedLog} className="p-1 text-on-surface-secondary hover:text-red-500"><TrashIcon className="w-5 h-5"/></button>}
@@ -261,6 +519,16 @@ const Employees: React.FC<EmployeesProps> = (props) => {
                         </div>
                     </div>
                 </Modal>
+            )}
+
+            {salaryModalEmployee && (
+                <SalaryCalculationModal 
+                    employee={salaryModalEmployee} 
+                    workLogs={workLogs}
+                    salaryPayments={salaryPayments} 
+                    onPaySalary={onPaySalary}
+                    onClose={() => setSalaryModalEmployee(null)} 
+                />
             )}
         </div>
     );

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import type { ViewType, Employee, PurchaseInvoice, Part, SalesOrder, Customer, Supplier, AssemblyOrder, PurchaseItem, OrderItem, WorkLog, Payment, Toast, ProductProfitabilityReport, SalaryReport } from './types';
+import type { ViewType, Employee, PurchaseInvoice, Part, SalesOrder, Customer, Supplier, AssemblyOrder, PurchaseItem, OrderItem, WorkLog, Payment, Toast, ProductProfitabilityReport, SalaryReport, ProductionLog, Expense, SalaryPayment } from './types';
 import { PayType, OrderStatus, AssemblyStatus } from './types';
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
@@ -11,8 +11,34 @@ import Reports from './components/Reports';
 import Assembly from './components/Assembly';
 import Settings from './components/Settings';
 import SuppliersCustomers from './components/SuppliersCustomers';
+import Expenses from './components/Expenses';
 import ToastContainer from './components/shared/Toast';
 import ConfirmationModal from './components/shared/ConfirmationModal';
+
+function usePersistentState<T>(key: string, initialValue: T): [T, React.Dispatch<React.SetStateAction<T>>] {
+  const [state, setState] = useState<T>(() => {
+    try {
+      const storedValue = window.localStorage.getItem(key);
+      if (storedValue) {
+        return JSON.parse(storedValue);
+      }
+    } catch (error) {
+      console.error(`Error reading localStorage key “${key}”:`, error);
+    }
+    return initialValue;
+  });
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(key, JSON.stringify(state));
+    } catch (error) {
+      console.error(`Error writing to localStorage key “${key}”:`, error);
+    }
+  }, [key, state]);
+
+  return [state, setState];
+}
+
 
 const App: React.FC = () => {
   const [view, setView] = useState<ViewType>('dashboard');
@@ -29,72 +55,71 @@ const App: React.FC = () => {
       end: '',
   });
 
-  // --- MOCK DATA ---
-  const [employees, setEmployees] = useState<Employee[]>([
+  const [employeeIdToManage, setEmployeeIdToManage] = useState<number | null>(null);
+
+  // --- PERSISTENT DATA ---
+  const [employees, setEmployees] = usePersistentState<Employee[]>('employees', [
     { id: 1, name: 'علی رضایی', payType: PayType.HOURLY, hourlyRate: 150000, dailyRate: 0, overtimeRate: 200000 },
     { id: 2, name: 'زهرا احمدی', payType: PayType.DAILY, hourlyRate: 0, dailyRate: 1200000, overtimeRate: 250000 },
   ]);
 
-  const [workLogs, setWorkLogs] = useState<WorkLog[]>([
-      {id: 1, employeeId: 1, date: '2023-10-01', hoursWorked: 8, overtimeHours: 2},
+  const [workLogs, setWorkLogs] = usePersistentState<WorkLog[]>('workLogs', [
+      {id: 1, employeeId: 1, date: '2023-10-01', hoursWorked: 8, overtimeHours: 2, description: 'انجام پروژه اولیه'},
       {id: 2, employeeId: 2, date: '2023-10-01', workedDay: true, overtimeHours: 1},
       {id: 3, employeeId: 1, date: '2023-10-02', hoursWorked: 9, overtimeHours: 1},
       {id: 4, employeeId: 1, date: '2024-05-10', hoursWorked: 8, overtimeHours: 0},
       {id: 5, employeeId: 2, date: '2024-05-10', workedDay: true, overtimeHours: 2},
+      {id: 6, employeeId: 2, date: '2024-05-11', workedDay: false, overtimeHours: 0, description: 'مرخصی استعلاجی'},
   ]);
 
-  const [parts, setParts] = useState<Part[]>([
-    { id: 1, name: 'میلگرد فولادی خام', isAssembly: false, stock: 100, threshold: 20, cost: 95000 },
+  const [parts, setParts] = usePersistentState<Part[]>('parts', [
+    { id: 1, name: 'میلگرد فولادی خام', isAssembly: false, stock: 10, threshold: 20, cost: 95000 },
     { id: 2, name: 'پیچ M8', isAssembly: false, stock: 500, threshold: 100, cost: 5000 },
-    { id: 3, name: 'قطعه مونتاژی براکت', isAssembly: true, stock: 20, threshold: 5, components: [{ partId: 1, quantity: 2 }, { partId: 2, quantity: 8 }] },
-    { id: 4, name: 'محصول نهایی X', isAssembly: true, stock: 10, threshold: 2, components: [{ partId: 3, quantity: 1 }] },
+    { id: 3, name: 'قطعه مونتاژی براکت', isAssembly: true, stock: 20, threshold: 5, components: [{ partId: 1, quantity: 2 }, { partId: 2, quantity: 8 }], cost: 230000 },
+    { id: 4, name: 'محصول نهایی X', isAssembly: true, stock: 10, threshold: 2, components: [{ partId: 3, quantity: 1 }], cost: 230000 },
   ]);
 
-  const [purchases, setPurchases] = useState<PurchaseInvoice[]>([
+  const [purchases, setPurchases] = usePersistentState<PurchaseInvoice[]>('purchases', [
     { id: 1, supplierId: 1, date: '2023-10-01', items: [{id: 1, itemName: 'میلگرد فولادی خام', quantity: 50, unitPrice: 100000}], totalAmount: 5000000 },
   ]);
 
-  const [orders, setOrders] = useState<SalesOrder[]>([
+  const [orders, setOrders] = usePersistentState<SalesOrder[]>('orders', [
     { id: 1, customerId: 1, date: '2024-05-15', items: [{productId: 4, quantity: 2, price: 5000000}], totalAmount: 10000000, payments: [{id: 1, amount: 10000000, date: '2024-05-15'}], status: OrderStatus.DELIVERED, deliveryDate: '2024-05-20', costOfGoodsSold: 460000 },
     { id: 2, customerId: 2, date: '2024-05-20', items: [{productId: 3, quantity: 10, price: 500000}], totalAmount: 5000000, payments: [{id:1, amount: 5000000, date: '2024-05-20'}], status: OrderStatus.PAID, deliveryDate: '2024-05-25' },
     { id: 3, customerId: 1, date: '2023-08-10', items: [{productId: 3, quantity: 5, price: 500000}], totalAmount: 2500000, payments: [], status: OrderStatus.PENDING, deliveryDate: '2023-08-20' },
   ]);
 
-  const [assemblyOrders, setAssemblyOrders] = useState<AssemblyOrder[]>([
-    { id: 1, partId: 3, quantity: 10, date: '2023-10-10', status: AssemblyStatus.COMPLETED },
+  const [assemblyOrders, setAssemblyOrders] = usePersistentState<AssemblyOrder[]>('assemblyOrders', [
+    { id: 1, partId: 3, quantity: 10, date: '2023-10-10', status: AssemblyStatus.COMPLETED, materialCost: 2300000, laborCost: 300000 },
     { id: 2, partId: 4, quantity: 5, date: '2023-10-20', status: AssemblyStatus.PENDING },
   ]);
 
-  const [customers, setCustomers] = useState<Customer[]>([
-      { id: 1, name: 'شرکت جهانی', contactInfo: 'contact@globalcorp.com' },
-      { id: 2, name: 'کسب‌وکار محلی', contactInfo: 'sales@localbiz.com' },
+  const [productionLogs, setProductionLogs] = usePersistentState<ProductionLog[]>('productionLogs', [
+      { id: 1, assemblyOrderId: 1, employeeId: 1, date: '2023-10-10', hoursSpent: 2 },
   ]);
 
-  const [suppliers, setSuppliers] = useState<Supplier[]>([
-      { id: 1, name: 'فولاد گستر', contactInfo: 'info@metalsupply.com' },
-      { id: 2, name: 'کارخانه قطعات', contactInfo: 'orders@componentfactory.com' },
+  const [customers, setCustomers] = usePersistentState<Customer[]>('customers', [
+    { id: 1, name: 'شرکت جهانی', contactInfo: 'contact@globalcorp.com', phone: '021-12345678', address: 'تهران، خیابان اصلی', job: 'تولیدی' },
+    { id: 2, name: 'کسب‌وکار محلی', contactInfo: 'sales@localbiz.com', phone: '031-87654321', address: 'اصفهان، میدان نقش جهان', job: 'خدماتی' },
   ]);
+
+  const [suppliers, setSuppliers] = usePersistentState<Supplier[]>('suppliers', [
+      { id: 1, name: 'فولاد گستر', contactInfo: 'info@metalsupply.com', phone: '021-11112222', address: 'شهرک صنعتی', activityType: 'تامین مواد اولیه' },
+      { id: 2, name: 'کارخانه قطعات', contactInfo: 'orders@componentfactory.com', phone: '021-33334444', address: 'جاده مخصوص', activityType: 'تولید قطعات' },
+  ]);
+
+  const [expenses, setExpenses] = usePersistentState<Expense[]>('expenses', [
+    { id: 1, date: '2024-05-01', description: 'اجاره کارگاه برای ماه می', amount: 5000000, category: 'اجاره' },
+    { id: 2, date: '2024-05-25', description: 'هزینه حمل سفارش #2', amount: 150000, category: 'حمل و نقل' },
+  ]);
+
+  const [salaryPayments, setSalaryPayments] = usePersistentState<SalaryPayment[]>('salaryPayments', []);
 
   const partsMap = useMemo(() => new Map(parts.map(p => [p.id, p])), [parts]);
+  const employeesMap = useMemo(() => new Map(employees.map(e => [e.id, e])), [employees]);
 
-  const calculatePartCost = useCallback((partId: number, visited = new Set<number>()): number => {
-    if (visited.has(partId)) return 0; // Circular dependency check
-    
-    const part = partsMap.get(partId);
-    if (!part) return 0;
-
-    if (!part.isAssembly) {
-      return part.cost || 0;
-    }
-
-    visited.add(partId);
-    const componentsCost = (part.components || []).reduce((sum, component) => {
-      const componentCost = calculatePartCost(component.partId, new Set(visited));
-      return sum + (componentCost * component.quantity);
-    }, 0);
-    visited.delete(partId);
-
-    return componentsCost;
+  const calculatePartCost = useCallback((partId: number): number => {
+    return partsMap.get(partId)?.cost || 0;
   }, [partsMap]);
 
 
@@ -159,6 +184,16 @@ const App: React.FC = () => {
     });
   };
 
+    const handlePaySalary = (paymentData: Omit<SalaryPayment, 'id' | 'paymentDate'>) => {
+        const newPayment: SalaryPayment = {
+            ...paymentData,
+            id: Date.now(),
+            paymentDate: new Date().toISOString().split('T')[0]
+        };
+        setSalaryPayments(prev => [...prev, newPayment]);
+        showToast(`حقوق برای ${employeesMap.get(paymentData.employeeId)?.name} پرداخت شد.`);
+    };
+
   const handleAddPurchase = (purchase: Omit<PurchaseInvoice, 'id' | 'totalAmount'>) => {
     const totalAmount = purchase.items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
     const newPurchase = { ...purchase, id: Date.now(), totalAmount };
@@ -186,8 +221,6 @@ const App: React.FC = () => {
   };
   
   const handleEditPurchase = (updatedPurchase: PurchaseInvoice) => {
-    // This function is complex due to inventory and cost reversion. For this app, we simplify by not reverting cost.
-    // A full implementation would require transaction logs.
     const originalPurchase = purchases.find(p => p.id === updatedPurchase.id);
     if (!originalPurchase) return;
 
@@ -242,7 +275,6 @@ const App: React.FC = () => {
       return;
     }
     
-    // Check stock before delivery
     for (const item of order.items) {
         const part = partsMap.get(item.productId);
         if (!part || part.stock < item.quantity) {
@@ -321,50 +353,91 @@ const App: React.FC = () => {
   const handleDeleteAssemblyOrder = (orderId: number) => {
     showConfirmation('حذف سفارش مونتاژ', 'آیا از حذف این سفارش مونتاژ اطمینان دارید؟', () => {
         setAssemblyOrders(prev => prev.filter(o => o.id !== orderId));
+        setProductionLogs(prev => prev.filter(log => log.assemblyOrderId !== orderId));
         showToast('سفارش مونتاژ با موفقیت حذف شد.', 'info');
     });
+  };
+  
+   const handleAddProductionLog = (log: Omit<ProductionLog, 'id'>) => {
+    setProductionLogs(prev => [...prev, {...log, id: Date.now()}]);
+    showToast('کارکرد تولید ثبت شد.');
+  };
+
+  const handleDeleteProductionLog = (logId: number) => {
+    setProductionLogs(prev => prev.filter(log => log.id !== logId));
+    showToast('کارکرد تولید حذف شد.', 'info');
   };
 
   const handleCompleteAssemblyOrder = (orderId: number) => {
     const order = assemblyOrders.find(o => o.id === orderId);
-    const assemblyPart = parts.find(p => p.id === order?.partId) as Part | undefined;
+    const assemblyPart = parts.find(p => p.id === order?.partId);
     if (!order || !assemblyPart || !assemblyPart.components) {
         showToast('محصول مونتاژی یا فرمول ساخت آن یافت نشد.', 'error');
         return;
     }
 
     for (const component of assemblyPart.components) {
-      const componentPart = parts.find(p => p.id === component.partId);
+      const componentPart = partsMap.get(component.partId);
       const requiredQuantity = component.quantity * order.quantity;
       if (!componentPart || componentPart.stock < requiredQuantity) {
         showToast(`موجودی "${componentPart?.name || 'قطعه نامشخص'}" کافی نیست.`, 'error');
         return;
       }
     }
+    
+    // Calculate costs for this specific order
+    const orderProductionLogs = productionLogs.filter(log => log.assemblyOrderId === orderId);
+    const totalLaborCost = orderProductionLogs.reduce((sum, log) => {
+        const employee = employeesMap.get(log.employeeId);
+        if (!employee) return sum;
+        const effectiveHourlyRate = employee.payType === PayType.HOURLY ? employee.hourlyRate : (employee.dailyRate / 8); // Assume 8-hour day
+        return sum + (log.hoursSpent * effectiveHourlyRate);
+    }, 0);
+
+    const totalMaterialCost = (assemblyPart.components || []).reduce((sum, component) => {
+        const componentCost = calculatePartCost(component.partId);
+        return sum + (componentCost * component.quantity * order.quantity);
+    }, 0);
+
+    const costPerUnitForThisOrder = (totalMaterialCost + totalLaborCost) / order.quantity;
 
     setParts(prevParts => {
       const newParts = JSON.parse(JSON.stringify(prevParts));
+      
+      // Deduct component stock
       assemblyPart.components?.forEach(component => {
         const partIndex = newParts.findIndex((p: Part) => p.id === component.partId);
         if (partIndex > -1) {
           newParts[partIndex].stock -= component.quantity * order.quantity;
         }
       });
+      
+      // Update final product stock and cost
       const finalPartIndex = newParts.findIndex((p: Part) => p.id === assemblyPart.id);
       if (finalPartIndex > -1) {
-        newParts[finalPartIndex].stock += order.quantity;
+        const oldStock = newParts[finalPartIndex].stock;
+        const oldCost = newParts[finalPartIndex].cost || 0;
+        const newStock = oldStock + order.quantity;
+        
+        newParts[finalPartIndex].stock = newStock;
+        // Weighted average cost calculation
+        if (newStock > 0) {
+            newParts[finalPartIndex].cost = ((oldStock * oldCost) + (order.quantity * costPerUnitForThisOrder)) / newStock;
+        } else {
+            newParts[finalPartIndex].cost = costPerUnitForThisOrder;
+        }
       }
       return newParts;
     });
 
     setAssemblyOrders(prev =>
-      prev.map(o => (o.id === orderId ? { ...o, status: AssemblyStatus.COMPLETED } : o))
+      prev.map(o => (o.id === orderId ? { ...o, status: AssemblyStatus.COMPLETED, laborCost: totalLaborCost, materialCost: totalMaterialCost } : o))
     );
     showToast(`مونتاژ ${order.quantity} عدد "${assemblyPart.name}" تکمیل شد.`);
   };
   
   const handleBackupData = () => {
-      const appData = { employees, workLogs, parts, purchases, orders, assemblyOrders, customers, suppliers };
+      const appData = { employees, workLogs, parts, purchases, orders, assemblyOrders, customers, suppliers, productionLogs, expenses, salaryPayments };
       const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(JSON.stringify(appData, null, 2))}`;
       const link = document.createElement("a");
       link.href = jsonString;
@@ -390,6 +463,9 @@ const App: React.FC = () => {
                 setAssemblyOrders(data.assemblyOrders || []);
                 setCustomers(data.customers || []);
                 setSuppliers(data.suppliers || []);
+                setProductionLogs(data.productionLogs || []);
+                setExpenses(data.expenses || []);
+                setSalaryPayments(data.salaryPayments || []);
                 showToast("اطلاعات با موفقیت بازیابی شد.");
             } catch (error) {
                 showToast("فایل پشتیبان نامعتبر است.", "error");
@@ -428,6 +504,26 @@ const App: React.FC = () => {
             showToast('مشتری حذف شد.', 'info');
         });
     };
+    
+     const handleAddExpense = (expense: Omit<Expense, 'id'>) => {
+        setExpenses(prev => [...prev, { ...expense, id: Date.now() }]);
+        showToast('هزینه جدید با موفقیت ثبت شد.');
+    };
+    const handleEditExpense = (updatedExpense: Expense) => {
+        setExpenses(prev => prev.map(e => e.id === updatedExpense.id ? updatedExpense : e));
+        showToast('هزینه با موفقیت ویرایش شد.');
+    };
+    const handleDeleteExpense = (id: number) => {
+        showConfirmation('حذف هزینه', 'آیا از حذف این هزینه اطمینان دارید؟', () => {
+            setExpenses(prev => prev.filter(e => e.id !== id));
+            showToast('هزینه حذف شد.', 'info');
+        });
+    };
+    
+    const handleManageEmployeeLog = (employeeId: number) => {
+        setEmployeeIdToManage(employeeId);
+        setView('employees');
+    };
 
     // --- Memoized Data for Reports and Dashboard ---
     const filteredAndCalculatedData = useMemo(() => {
@@ -449,12 +545,14 @@ const App: React.FC = () => {
         const filteredOrders = orders.filter(filterByDate);
         const filteredPurchases = purchases.filter(filterByDate);
         const filteredWorkLogs = workLogs.filter(filterByDate);
+        const filteredExpenses = expenses.filter(filterByDate);
         
         const deliveredOrders = filteredOrders.filter(o => o.status === OrderStatus.DELIVERED);
 
         const totalRevenue = deliveredOrders.reduce((sum, o) => sum + o.totalAmount, 0);
         const totalCOGS = deliveredOrders.reduce((sum, o) => sum + (o.costOfGoodsSold || 0), 0);
         const totalPurchaseCosts = filteredPurchases.reduce((sum, p) => sum + p.totalAmount, 0);
+        const totalExpenses = filteredExpenses.reduce((sum, e) => sum + e.amount, 0);
 
         const salaryReports: SalaryReport[] = employees.map(employee => {
             const employeeLogs = filteredWorkLogs.filter(log => log.employeeId === employee.id);
@@ -473,7 +571,7 @@ const App: React.FC = () => {
         });
         
         const totalSalaries = salaryReports.reduce((sum, r) => sum + r.totalSalary, 0);
-        const netProfit = totalRevenue - totalCOGS - totalSalaries;
+        const netProfit = totalRevenue - totalCOGS - totalSalaries - totalExpenses;
 
         const productProfitability: ProductProfitabilityReport[] = [];
         deliveredOrders.forEach(order => {
@@ -505,21 +603,32 @@ const App: React.FC = () => {
 
         return {
             orders: filteredOrders,
+            allOrders: orders, // for monthly chart
             purchases: filteredPurchases,
             workLogs: filteredWorkLogs,
             totalRevenue,
             totalCOGS,
             totalPurchaseCosts,
             totalSalaries,
+            totalExpenses,
             netProfit,
             salaryReports: salaryReports.filter(r => r.totalSalary > 0),
             productProfitabilityReport: productProfitability
         };
-    }, [reportDateRange, orders, purchases, workLogs, employees, partsMap, calculatePartCost]);
+    }, [reportDateRange, orders, purchases, workLogs, employees, partsMap, calculatePartCost, expenses]);
     
   const overdueUnpaidOrders = useMemo(() => 
     orders.filter(order => order.status === OrderStatus.PENDING && new Date(order.deliveryDate) < new Date())
   , [orders]);
+
+  const attendanceAlerts = useMemo(() => {
+    const today = new Date().toISOString().split('T')[0];
+    const loggedTodayIds = new Set(workLogs.filter(log => log.date === today).map(log => log.employeeId));
+    return employees.filter(emp => !loggedTodayIds.has(emp.id));
+  }, [employees, workLogs]);
+
+  const lowStockItems = useMemo(() => parts.filter(p => p.stock < p.threshold), [parts]);
+
 
   const renderView = () => {
     switch (view) {
@@ -532,28 +641,47 @@ const App: React.FC = () => {
                 revenue: filteredAndCalculatedData.totalRevenue,
                 cogs: filteredAndCalculatedData.totalCOGS,
                 salaries: filteredAndCalculatedData.totalSalaries,
+                expenses: filteredAndCalculatedData.totalExpenses,
                 netProfit: filteredAndCalculatedData.netProfit
             }}
             overdueUnpaidOrders={overdueUnpaidOrders}
+            attendanceAlerts={attendanceAlerts}
+            lowStockItems={lowStockItems}
+            onManageEmployeeLog={handleManageEmployeeLog}
             customers={customers}
         />;
       case 'employees':
         return <Employees 
             employees={employees} 
             workLogs={workLogs}
+            salaryPayments={salaryPayments}
             onAddEmployee={handleAddEmployee} 
             onEditEmployee={handleEditEmployee} 
             onDeleteEmployee={handleDeleteEmployee} 
             onAddWorkLog={handleAddWorkLog}
             onEditWorkLog={handleEditWorkLog}
             onDeleteWorkLog={handleDeleteWorkLog}
+            onPaySalary={handlePaySalary}
+            employeeIdToManage={employeeIdToManage}
+            onClearManageEmployee={() => setEmployeeIdToManage(null)}
         />;
       case 'purchases':
         return <Purchases purchases={purchases} onAddPurchase={handleAddPurchase} onEditPurchase={handleEditPurchase} onDeletePurchase={handleDeletePurchase} suppliers={suppliers} />;
       case 'inventory':
         return <Inventory parts={parts} onAddPart={handleAddPart} onEditPart={handleEditPart} onDeletePart={handleDeletePart} calculatePartCost={calculatePartCost} />;
       case 'assembly':
-        return <Assembly assemblyOrders={assemblyOrders} parts={parts} onAddAssemblyOrder={handleAddAssemblyOrder} onCompleteAssemblyOrder={handleCompleteAssemblyOrder} onDeleteAssemblyOrder={handleDeleteAssemblyOrder} />;
+        return <Assembly 
+            assemblyOrders={assemblyOrders} 
+            parts={parts} 
+            employees={employees}
+            productionLogs={productionLogs}
+            onAddAssemblyOrder={handleAddAssemblyOrder} 
+            onCompleteAssemblyOrder={handleCompleteAssemblyOrder} 
+            onDeleteAssemblyOrder={handleDeleteAssemblyOrder}
+            onAddProductionLog={handleAddProductionLog}
+            onDeleteProductionLog={handleDeleteProductionLog}
+            calculatePartCost={calculatePartCost}
+         />;
       case 'orders':
         return <Orders orders={orders} onAddOrder={handleAddOrder} onAddPayment={handleAddPayment} onDeleteOrder={handleDeleteOrder} onDeliverOrder={handleDeliverOrder} parts={parts} customers={customers} />;
       case 'reports':
@@ -569,6 +697,8 @@ const App: React.FC = () => {
         return <SuppliersCustomers 
                     suppliers={suppliers} 
                     customers={customers}
+                    orders={orders}
+                    partsMap={partsMap}
                     onAddSupplier={handleAddSupplier}
                     onEditSupplier={handleEditSupplier}
                     onDeleteSupplier={handleDeleteSupplier}
@@ -576,6 +706,13 @@ const App: React.FC = () => {
                     onEditCustomer={handleEditCustomer}
                     onDeleteCustomer={handleDeleteCustomer}
                 />;
+       case 'expenses':
+        return <Expenses
+                    expenses={expenses}
+                    onAddExpense={handleAddExpense}
+                    onEditExpense={handleEditExpense}
+                    onDeleteExpense={handleDeleteExpense}
+                />
       default:
         return <Dashboard 
             orders={orders} 
@@ -585,9 +722,13 @@ const App: React.FC = () => {
                 revenue: filteredAndCalculatedData.totalRevenue,
                 cogs: filteredAndCalculatedData.totalCOGS,
                 salaries: filteredAndCalculatedData.totalSalaries,
+                expenses: filteredAndCalculatedData.totalExpenses,
                 netProfit: filteredAndCalculatedData.netProfit
             }}
             overdueUnpaidOrders={overdueUnpaidOrders}
+            attendanceAlerts={attendanceAlerts}
+            lowStockItems={lowStockItems}
+            onManageEmployeeLog={handleManageEmployeeLog}
             customers={customers}
         />;
     }

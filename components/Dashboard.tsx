@@ -1,10 +1,10 @@
 import React from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
-import type { SalesOrder, Part, ViewType, Customer } from '../types';
+import type { SalesOrder, Part, ViewType, Customer, Employee } from '../types';
 import { OrderStatus } from '../types';
 import Card from './shared/Card';
 import Button from './shared/Button';
-import { AddIcon, LowStockIcon, MoneyIcon, PendingIcon, ProfitIcon, EmployeeIcon } from './icons/Icons';
+import { AddIcon, LowStockIcon, MoneyIcon, PendingIcon, ProfitIcon, EmployeeIcon, DocumentTextIcon } from './icons/Icons';
 
 const formatDateShamsi = (isoDate: string): string => {
     if (!isoDate) return '';
@@ -23,16 +23,18 @@ interface DashboardProps {
         revenue: number;
         cogs: number;
         salaries: number;
+        expenses: number;
         netProfit: number;
     }
     overdueUnpaidOrders: SalesOrder[];
+    attendanceAlerts: Employee[];
+    lowStockItems: Part[];
+    onManageEmployeeLog: (employeeId: number) => void;
     customers: Customer[];
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ orders, parts, setView, financials, overdueUnpaidOrders, customers }) => {
+const Dashboard: React.FC<DashboardProps> = ({ orders, parts, setView, financials, overdueUnpaidOrders, attendanceAlerts, lowStockItems, onManageEmployeeLog, customers }) => {
     const pendingOrders = orders.filter(o => o.status === OrderStatus.PENDING).length;
-    
-    const lowStockItems = parts.filter(p => p.stock < p.threshold).length;
     
     const customersMap = new Map(customers.map(c => [c.id, c.name]));
 
@@ -40,8 +42,11 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, parts, setView, financial
         { name: 'سود خالص', value: Math.max(0, financials.netProfit) },
         { name: 'هزینه کالا (COGS)', value: financials.cogs },
         { name: 'حقوق و دستمزد', value: financials.salaries },
+        { name: 'سایر هزینه‌ها', value: financials.expenses },
     ];
-    const COLORS = ['#14b8a6', '#f97316', '#3b82f6'];
+    const COLORS = ['#14b8a6', '#f97316', '#3b82f6', '#ef4444'];
+    
+    const hasAlerts = overdueUnpaidOrders.length > 0 || attendanceAlerts.length > 0 || lowStockItems.length > 0;
 
     return (
         <div>
@@ -88,7 +93,7 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, parts, setView, financial
                         </div>
                         <div className="mr-4">
                             <p className="text-sm text-on-surface-secondary">کالاهای رو به اتمام</p>
-                            <p className="text-2xl font-bold text-on-surface">{lowStockItems.toLocaleString('fa-IR')}</p>
+                            <p className="text-2xl font-bold text-on-surface">{lowStockItems.length.toLocaleString('fa-IR')}</p>
                         </div>
                     </div>
                 </Card>
@@ -101,6 +106,7 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, parts, setView, financial
                         <Button onClick={() => setView('orders')} icon={<AddIcon />}>سفارش جدید</Button>
                         <Button onClick={() => setView('purchases')} icon={<AddIcon />}>خرید جدید</Button>
                         <Button onClick={() => setView('employees')} icon={<EmployeeIcon />}>مدیریت کارکرد</Button>
+                        <Button onClick={() => setView('expenses')} icon={<DocumentTextIcon />}>ثبت هزینه</Button>
                     </div>
 
                     <div className="mt-10">
@@ -138,8 +144,34 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, parts, setView, financial
                 <div>
                      <h2 className="text-2xl font-bold mb-4 text-on-surface">هشدارها</h2>
                      <Card>
-                        {overdueUnpaidOrders.length > 0 ? (
+                        {hasAlerts ? (
                              <ul className="divide-y divide-gray-600">
+                                {lowStockItems.length > 0 && (
+                                    <li className="py-3">
+                                        <p className="font-medium text-red-400 mb-2">کمبود موجودی انبار</p>
+                                        <ul className="space-y-2">
+                                            {lowStockItems.map(item => (
+                                                <li key={`stock-${item.id}`} className="text-sm text-on-surface-secondary flex justify-between items-center">
+                                                    <span>{item.name} (موجودی: {item.stock})</span>
+                                                    <button onClick={() => setView('inventory')} className="text-primary hover:underline text-xs">مدیریت انبار</button>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </li>
+                                )}
+                                {attendanceAlerts.length > 0 && (
+                                    <li className="py-3">
+                                        <p className="font-medium text-blue-400 mb-2">کارکرد امروز ثبت نشده</p>
+                                        <ul className="space-y-2">
+                                            {attendanceAlerts.map(employee => (
+                                                <li key={`att-${employee.id}`} className="text-sm text-on-surface-secondary flex justify-between items-center">
+                                                    <span>{employee.name}</span>
+                                                    <button onClick={() => onManageEmployeeLog(employee.id)} className="text-primary hover:underline text-xs">ثبت کارکرد</button>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </li>
+                                )}
                                 {overdueUnpaidOrders.map(order => (
                                     <li key={order.id} className="py-3">
                                         <p className="font-medium text-yellow-400">سفارش پرداخت نشده #{order.id}</p>

@@ -1,6 +1,6 @@
 import React from 'react';
 import type { ViewType } from '../types';
-import { DashboardIcon, EmployeeIcon, InventoryIcon, OrdersIcon, PurchasesIcon, ReportsIcon, WorkshopIcon, AssemblyIcon, SettingsIcon, UsersGroupIcon } from './icons/Icons';
+import { DashboardIcon, EmployeeIcon, InventoryIcon, OrdersIcon, PurchasesIcon, ReportsIcon, WorkshopIcon, AssemblyIcon, SettingsIcon, UsersGroupIcon, DocumentTextIcon } from './icons/Icons';
 
 interface SidebarProps {
   view: ViewType;
@@ -16,6 +16,7 @@ const Sidebar: React.FC<SidebarProps> = ({ view, setView }) => {
     { id: 'inventory', label: 'انبار', icon: <InventoryIcon /> },
     { id: 'assembly', label: 'مونتاژ', icon: <AssemblyIcon /> },
     { id: 'orders', label: 'سفارشات و فروش', icon: <OrdersIcon /> },
+    { id: 'expenses', label: 'هزینه‌ها', icon: <DocumentTextIcon /> },
     { id: 'reports', label: 'گزارش‌ها', icon: <ReportsIcon /> },
     { id: 'settings', label: 'تنظیمات', icon: <SettingsIcon /> },
   ] as const;

@@ -19,12 +19,16 @@ export interface WorkLog {
   hoursWorked?: number;
   workedDay?: boolean;
   overtimeHours: number;
+  description?: string;
 }
 
 export interface Supplier {
   id: number;
   name: string;
   contactInfo: string;
+  phone?: string;
+  address?: string;
+  activityType?: string;
 }
 
 export interface PurchaseItem {
@@ -68,12 +72,25 @@ export interface AssemblyOrder {
   quantity: number;
   date: string;
   status: AssemblyStatus;
+  materialCost?: number;
+  laborCost?: number;
+}
+
+export interface ProductionLog {
+    id: number;
+    assemblyOrderId: number;
+    employeeId: number;
+    date: string;
+    hoursSpent: number;
 }
 
 export interface Customer {
   id: number;
   name: string;
   contactInfo: string;
+  phone?: string;
+  address?: string;
+  job?: string;
 }
 
 export interface OrderItem {
@@ -130,4 +147,23 @@ export type Toast = {
   type: 'success' | 'error' | 'info';
 };
 
-export type ViewType = 'dashboard' | 'employees' | 'purchases' | 'inventory' | 'assembly' | 'orders' | 'reports' | 'settings' | 'suppliers_customers';
+export type ViewType = 'dashboard' | 'employees' | 'purchases' | 'inventory' | 'assembly' | 'orders' | 'reports' | 'settings' | 'suppliers_customers' | 'expenses';
+
+export interface Expense {
+  id: number;
+  date: string;
+  description: string;
+  amount: number;
+  category: string;
+}
+
+export interface SalaryPayment {
+  id: number;
+  employeeId: number;
+  periodStart: string;
+  periodEnd: string;
+  baseSalary: number;
+  overtimeSalary: number;
+  totalSalary: number;
+  paymentDate: string;
+}
