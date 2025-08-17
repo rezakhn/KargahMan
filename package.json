@@ -4,7 +4,7 @@
   "description": "A desktop application to manage a small workshop, using Electron.",
   "main": "electron.js",
   "scripts": {
-    "start": "electron ."
+    "start": "electron electron.js"
   },
   "keywords": [],
   "author": "",
