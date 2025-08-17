@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import type { ViewType, Employee, PurchaseInvoice, Part, SalesOrder, Customer, Supplier, AssemblyOrder, PurchaseItem, OrderItem, WorkLog, Payment, Toast, ProductProfitabilityReport, SalaryReport, ProductionLog, Expense, SalaryPayment } from './types';
 import { PayType, OrderStatus, AssemblyStatus } from './types';
@@ -14,6 +15,17 @@ import SuppliersCustomers from './components/SuppliersCustomers';
 import Expenses from './components/Expenses';
 import ToastContainer from './components/shared/Toast';
 import ConfirmationModal from './components/shared/ConfirmationModal';
+
+declare global {
+  interface FileSystemFileHandle {
+    queryPermission(options?: { mode: 'read' | 'readwrite' }): Promise<'granted' | 'denied' | 'prompt'>;
+    requestPermission(options?: { mode: 'read' | 'readwrite' }): Promise<'granted' | 'denied' | 'prompt'>;
+  }
+  interface Window {
+    showOpenFilePicker: (options?: any) => Promise<[FileSystemFileHandle]>;
+    showSaveFilePicker: (options?: any) => Promise<FileSystemFileHandle>;
+  }
+}
 
 function usePersistentState<T>(key: string, initialValue: T): [T, React.Dispatch<React.SetStateAction<T>>] {
   const [state, setState] = useState<T>(() => {
@@ -39,6 +51,40 @@ function usePersistentState<T>(key: string, initialValue: T): [T, React.Dispatch
   return [state, setState];
 }
 
+// Helper functions for IndexedDB to persist the file handle
+const idb = {
+  get: <T,>(key: string): Promise<T | null> => {
+    return new Promise((resolve) => {
+      const request = indexedDB.open('workshop-db', 1);
+      request.onupgradeneeded = () => request.result.createObjectStore('keyval');
+      request.onsuccess = () => {
+        const db = request.result;
+        const tx = db.transaction('keyval', 'readonly');
+        const store = tx.objectStore('keyval');
+        const getRequest = store.get(key);
+        getRequest.onsuccess = () => resolve(getRequest.result);
+        getRequest.onerror = () => resolve(null);
+        tx.oncomplete = () => db.close();
+      };
+      request.onerror = () => resolve(null);
+    });
+  },
+  set: (key: string, value: any): Promise<void> => {
+    return new Promise((resolve, reject) => {
+      const request = indexedDB.open('workshop-db', 1);
+      request.onupgradeneeded = () => request.result.createObjectStore('keyval');
+      request.onsuccess = () => {
+        const db = request.result;
+        const tx = db.transaction('keyval', 'readwrite');
+        tx.objectStore('keyval').put(value, key);
+        tx.oncomplete = () => { db.close(); resolve(); };
+        tx.onerror = () => reject(tx.error);
+      };
+      request.onerror = () => reject(request.error);
+    });
+  }
+};
+
 
 const App: React.FC = () => {
   const [view, setView] = useState<ViewType>('dashboard');
@@ -48,6 +94,8 @@ const App: React.FC = () => {
     title: '',
     message: '',
     onConfirm: () => {},
+    confirmButtonText: 'تایید و حذف',
+    confirmButtonVariant: 'danger' as 'primary' | 'secondary' | 'danger',
   });
   
   const [reportDateRange, setReportDateRange] = useState<{start: string, end: string}>({
@@ -56,6 +104,11 @@ const App: React.FC = () => {
   });
 
   const [employeeIdToManage, setEmployeeIdToManage] = useState<number | null>(null);
+
+  // --- Data Persistence State ---
+  const [fileHandle, setFileHandle] = useState<FileSystemFileHandle | null>(null);
+  const [isFSApiSupported, setIsFSApiSupported] = useState(false);
+  const [autoSave, setAutoSave] = useState(false);
 
   // --- PERSISTENT DATA ---
   const [employees, setEmployees] = usePersistentState<Employee[]>('employees', [
@@ -124,28 +177,177 @@ const App: React.FC = () => {
 
 
   // --- UTILITY FUNCTIONS ---
-  const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
+  const showToast = useCallback((message: string, type: 'success' | 'error' | 'info' = 'success') => {
     const newToast: Toast = { id: Date.now(), message, type };
     setToasts(prev => [...prev, newToast]);
     setTimeout(() => {
       setToasts(prev => prev.filter(t => t.id !== newToast.id));
     }, 4000);
-  };
+  }, []);
 
-  const showConfirmation = (title: string, message: string, onConfirm: () => void) => {
+  const showConfirmation = (
+    title: string,
+    message: string,
+    onConfirm: () => void,
+    confirmButtonText: string = 'تایید و حذف',
+    confirmButtonVariant: 'primary' | 'secondary' | 'danger' = 'danger'
+  ) => {
     setConfirmation({
       isOpen: true,
       title,
       message,
       onConfirm: () => {
         onConfirm();
-        setConfirmation({ isOpen: false, title: '', message: '', onConfirm: () => {} });
+        closeConfirmation();
       },
+      confirmButtonText,
+      confirmButtonVariant,
     });
   };
 
   const closeConfirmation = () => {
-    setConfirmation({ isOpen: false, title: '', message: '', onConfirm: () => {} });
+    setConfirmation(prev => ({ ...prev, isOpen: false }));
+  };
+  
+  // --- DATA PERSISTENCE LOGIC ---
+  const allData = useMemo(() => ({ employees, workLogs, parts, purchases, orders, assemblyOrders, customers, suppliers, productionLogs, expenses, salaryPayments }), [employees, workLogs, parts, purchases, orders, assemblyOrders, customers, suppliers, productionLogs, expenses, salaryPayments]);
+  
+  const handleConnectFile = async () => {
+    try {
+        const handle = await window.showSaveFilePicker({
+            suggestedName: 'workshop-data.json',
+            types: [{ description: 'JSON Files', accept: { 'application/json': ['.json'] } }],
+        });
+        await idb.set('fileHandle', handle);
+        setFileHandle(handle);
+        showToast(`فایل ${handle.name} برای ذخیره‌سازی متصل شد.`);
+        // Save current data to the newly connected file immediately
+        await saveDataToFile(handle);
+    } catch (err) {
+        const error = err as Error;
+        if (error.name === 'SecurityError') {
+            showToast('مرورگر اجازه دسترسی به فایل را به دلیل محدودیت‌های امنیتی (مانند اجرا در فریم) نمی‌دهد. لطفاً از روش پشتیبان‌گیری دستی استفاده کنید.', 'error');
+            setIsFSApiSupported(false);
+        } else if (error.name !== 'AbortError') {
+            console.error('Error connecting file:', err);
+            showToast('خطا در اتصال فایل.', 'error');
+        }
+    }
+  };
+
+  useEffect(() => {
+    const checkApiSupport = async () => {
+        if ('showSaveFilePicker' in window) {
+            setIsFSApiSupported(true);
+            const handle = await idb.get<FileSystemFileHandle>('fileHandle');
+            if (handle) {
+                if ((await handle.queryPermission({ mode: 'readwrite' })) === 'granted') {
+                    setFileHandle(handle);
+                } else {
+                    await idb.set('fileHandle', null); // Clear stale handle if permissions were revoked
+                }
+            } else {
+                 showConfirmation(
+                    'تنظیم فایل ذخیره‌سازی',
+                    'برای جلوگیری از پاک شدن اطلاعات با پاک کردن حافظه مرورگر، بهتر است برنامه را به یک فایل روی کامپیوتر خود متصل کنید. آیا می‌خواهید الآن یک فایل برای ذخیره داده‌ها ایجاد کنید؟',
+                    handleConnectFile,
+                    'بله، فایل را ایجاد کن',
+                    'primary'
+                );
+            }
+            const autoSaveVal = await idb.get<boolean>('autoSave');
+            setAutoSave(!!autoSaveVal);
+        }
+    };
+    checkApiSupport();
+  }, []);
+
+  const saveDataToFile = useCallback(async (handle?: FileSystemFileHandle | null) => {
+    const currentHandle = handle || fileHandle;
+    if (!currentHandle) {
+        showToast('فایل داده متصل نیست.', 'error');
+        return;
+    }
+    try {
+        const writable = await currentHandle.createWritable();
+        await writable.write(JSON.stringify(allData, null, 2));
+        await writable.close();
+        showToast(`داده‌ها با موفقیت در فایل ${currentHandle.name} ذخیره شد.`);
+    } catch (err) {
+        console.error('Error saving data to file:', err);
+        showToast('خطا در ذخیره داده‌ها.', 'error');
+    }
+  }, [fileHandle, allData, showToast]);
+
+  useEffect(() => {
+    if (autoSave && fileHandle) {
+        const handler = setTimeout(() => {
+            saveDataToFile();
+        }, 2000);
+        return () => clearTimeout(handler);
+    }
+  }, [autoSave, fileHandle, saveDataToFile, allData]);
+
+  const loadDataIntoState = useCallback((data: any) => {
+    setEmployees(data.employees || []);
+    setWorkLogs(data.workLogs || []);
+    setParts(data.parts || []);
+    setPurchases(data.purchases || []);
+    setOrders(data.orders || []);
+    setAssemblyOrders(data.assemblyOrders || []);
+    setCustomers(data.customers || []);
+    setSuppliers(data.suppliers || []);
+    setProductionLogs(data.productionLogs || []);
+    setExpenses(data.expenses || []);
+    setSalaryPayments(data.salaryPayments || []);
+    showToast("اطلاعات با موفقیت بازیابی شد.");
+  }, [setAssemblyOrders, setCustomers, setEmployees, setExpenses, setOrders, setParts, setProductionLogs, setPurchases, setSalaryPayments, setSuppliers, setWorkLogs, showToast]);
+  
+  const handleLoadDataFromFile = async () => {
+    let handleToLoadFrom: FileSystemFileHandle | null = fileHandle;
+    if (!handleToLoadFrom) {
+        try {
+            [handleToLoadFrom] = await window.showOpenFilePicker({
+                types: [{ description: 'JSON Files', accept: { 'application/json': ['.json'] } }],
+            });
+        } catch (err) {
+            const error = err as Error;
+            if (error.name === 'SecurityError') {
+                showToast('مرورگر اجازه دسترسی به فایل را به دلیل محدودیت‌های امنیتی (مانند اجرا در فریم) نمی‌دهد. لطفاً از روش پشتیبان‌گیری دستی استفاده کنید.', 'error');
+                setIsFSApiSupported(false);
+            } else if (error.name !== 'AbortError') {
+                console.error('Error picking file', err);
+                showToast('خطا در انتخاب فایل.', 'error');
+            }
+            return; // Exit function on any error in picker
+        }
+    }
+
+    if (!handleToLoadFrom) return;
+
+    showConfirmation(
+        "بازیابی اطلاعات از فایل",
+        `آیا مطمئن هستید؟ تمام داده‌های فعلی با اطلاعات فایل "${handleToLoadFrom.name}" جایگزین خواهند شد.`,
+        async () => {
+            try {
+                const file = await handleToLoadFrom!.getFile();
+                const contents = await file.text();
+                const data = JSON.parse(contents);
+                loadDataIntoState(data);
+            } catch (err) {
+                console.error('Error loading data from file:', err);
+                showToast("فایل پشتیبان نامعتبر است یا خطایی رخ داده.", "error");
+            }
+        },
+        "بله، بازیابی کن",
+        "primary"
+    );
+  };
+  
+  const handleToggleAutoSave = async (enabled: boolean) => {
+    setAutoSave(enabled);
+    await idb.set('autoSave', enabled);
+    showToast(enabled ? 'ذخیره خودکار فعال شد.' : 'ذخیره خودکار غیرفعال شد.', 'info');
   };
 
   // --- HANDLER FUNCTIONS ---
@@ -184,14 +386,13 @@ const App: React.FC = () => {
     });
   };
 
-    const handlePaySalary = (paymentData: Omit<SalaryPayment, 'id' | 'paymentDate'>) => {
+    const handlePaySalary = (paymentData: Omit<SalaryPayment, 'id'>) => {
         const newPayment: SalaryPayment = {
             ...paymentData,
             id: Date.now(),
-            paymentDate: new Date().toISOString().split('T')[0]
         };
         setSalaryPayments(prev => [...prev, newPayment]);
-        showToast(`حقوق برای ${employeesMap.get(paymentData.employeeId)?.name} پرداخت شد.`);
+        showToast(`مبلغ ${paymentData.amount.toLocaleString('fa-IR')} تومان برای ${employeesMap.get(paymentData.employeeId)?.name} پرداخت شد.`);
     };
 
   const handleAddPurchase = (purchase: Omit<PurchaseInvoice, 'id' | 'totalAmount'>) => {
@@ -437,8 +638,7 @@ const App: React.FC = () => {
   };
   
   const handleBackupData = () => {
-      const appData = { employees, workLogs, parts, purchases, orders, assemblyOrders, customers, suppliers, productionLogs, expenses, salaryPayments };
-      const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(JSON.stringify(appData, null, 2))}`;
+      const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(JSON.stringify(allData, null, 2))}`;
       const link = document.createElement("a");
       link.href = jsonString;
       link.download = `workshop_backup_${new Date().toISOString().split('T')[0]}.json`;
@@ -455,25 +655,14 @@ const App: React.FC = () => {
         reader.onload = (event) => {
             try {
                 const data = JSON.parse(event.target?.result as string);
-                setEmployees(data.employees || []);
-                setWorkLogs(data.workLogs || []);
-                setParts(data.parts || []);
-                setPurchases(data.purchases || []);
-                setOrders(data.orders || []);
-                setAssemblyOrders(data.assemblyOrders || []);
-                setCustomers(data.customers || []);
-                setSuppliers(data.suppliers || []);
-                setProductionLogs(data.productionLogs || []);
-                setExpenses(data.expenses || []);
-                setSalaryPayments(data.salaryPayments || []);
-                showToast("اطلاعات با موفقیت بازیابی شد.");
+                loadDataIntoState(data);
             } catch (error) {
                 showToast("فایل پشتیبان نامعتبر است.", "error");
             }
         };
         reader.readAsText(file);
         e.target.value = '';
-      });
+      }, "بله، بازیابی کن", "primary");
   };
   
     const handleAddSupplier = (supplier: Omit<Supplier, 'id'>) => {
@@ -692,7 +881,17 @@ const App: React.FC = () => {
             onDateRangeChange={setReportDateRange}
         />;
       case 'settings':
-        return <Settings onBackup={handleBackupData} onRestore={handleRestoreData} />;
+        return <Settings 
+                    onBackup={handleBackupData} 
+                    onRestore={handleRestoreData} 
+                    isFSApiSupported={isFSApiSupported}
+                    fileHandle={fileHandle}
+                    autoSave={autoSave}
+                    onConnectFile={handleConnectFile}
+                    onLoadFromFile={handleLoadDataFromFile}
+                    onSaveToFile={() => saveDataToFile()}
+                    onToggleAutoSave={handleToggleAutoSave}
+                />;
       case 'suppliers_customers':
         return <SuppliersCustomers 
                     suppliers={suppliers} 
@@ -747,6 +946,8 @@ const App: React.FC = () => {
         message={confirmation.message}
         onConfirm={confirmation.onConfirm}
         onCancel={closeConfirmation}
+        confirmButtonText={confirmation.confirmButtonText}
+        confirmButtonVariant={confirmation.confirmButtonVariant}
       />
     </div>
   );

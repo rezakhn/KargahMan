@@ -28,11 +28,14 @@ interface SalaryModalProps {
     workLogs: WorkLog[];
     salaryPayments: SalaryPayment[];
     onClose: () => void;
-    onPaySalary: (paymentData: Omit<SalaryPayment, 'id' | 'paymentDate'>) => void;
+    onPaySalary: (paymentData: Omit<SalaryPayment, 'id'>) => void;
 }
 
 const SalaryCalculationModal: React.FC<SalaryModalProps> = ({ employee, workLogs, salaryPayments, onClose, onPaySalary }) => {
     const [dateRange, setDateRange] = useState({ start: '', end: '' });
+    const [paymentAmount, setPaymentAmount] = useState(0);
+    const [paymentNotes, setPaymentNotes] = useState('');
+
 
     useEffect(() => {
         const today = new Date();
@@ -70,10 +73,31 @@ const SalaryCalculationModal: React.FC<SalaryModalProps> = ({ employee, workLogs
         const overtimeSalary = totalOvertime * employee.overtimeRate;
         const totalSalary = baseSalary + overtimeSalary;
         
-        const existingPayment = salaryPayments.find(p => p.employeeId === employee.id && p.periodStart === start && p.periodEnd === end);
+        return { filteredLogs, baseSalary, overtimeSalary, totalSalary, totalHours, totalDays };
+    }, [employee, workLogs, dateRange]);
 
-        return { filteredLogs, baseSalary, overtimeSalary, totalSalary, totalHours, totalDays, isPaid: !!existingPayment, paymentDate: existingPayment?.paymentDate };
-    }, [employee, workLogs, dateRange, salaryPayments]);
+    const periodPaymentData = useMemo(() => {
+        const { start, end } = dateRange;
+        if (!start || !end) return { totalPaid: 0, payments: [] };
+
+        const periodPayments = salaryPayments.filter(p =>
+            p.employeeId === employee.id &&
+            p.periodStart === start &&
+            p.periodEnd === end
+        ).sort((a, b) => new Date(b.paymentDate).getTime() - new Date(a.paymentDate).getTime());
+
+        const totalPaid = periodPayments.reduce((sum, p) => sum + p.amount, 0);
+
+        return { totalPaid, payments: periodPayments };
+    }, [employee, salaryPayments, dateRange]);
+    
+    const remainingAmount = useMemo(() => {
+        return salaryData ? salaryData.totalSalary - periodPaymentData.totalPaid : 0;
+    }, [salaryData, periodPaymentData.totalPaid]);
+    
+    useEffect(() => {
+        setPaymentAmount(remainingAmount > 0 ? remainingAmount : 0);
+    }, [remainingAmount]);
     
     const employeePaymentHistory = useMemo(() => {
         return salaryPayments
@@ -102,7 +126,7 @@ const SalaryCalculationModal: React.FC<SalaryModalProps> = ({ employee, workLogs
         doc.text(`حقوق پایه: ${salaryData!.baseSalary.toLocaleString('fa-IR')} تومان`, 190, 60, { align: 'right' });
         doc.text(`اضافه کاری: ${salaryData!.overtimeSalary.toLocaleString('fa-IR')} تومان`, 190, 67, { align: 'right' });
         doc.setFontSize(14);
-        doc.text(`جمع کل قابل پرداخت: ${salaryData!.totalSalary.toLocaleString('fa-IR')} تومان`, 190, 76, { align: 'right' });
+        doc.text(`جمع کل حقوق دوره: ${salaryData!.totalSalary.toLocaleString('fa-IR')} تومان`, 190, 76, { align: 'right' });
         
         doc.line(20, 85, 190, 85);
         
@@ -139,16 +163,21 @@ const SalaryCalculationModal: React.FC<SalaryModalProps> = ({ employee, workLogs
         doc.save(`payslip_${employee.name.replace(' ', '_')}_${dateRange.start}_${dateRange.end}.pdf`);
     };
 
-    const handlePay = () => {
-        if (!salaryData || salaryData.isPaid || salaryData.totalSalary <= 0) return;
+    const handlePay = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!salaryData || paymentAmount <= 0 || paymentAmount > remainingAmount) {
+            // TODO: show a toast for invalid amount
+            return;
+        }
         onPaySalary({
             employeeId: employee.id,
+            paymentDate: new Date().toISOString().split('T')[0],
+            amount: paymentAmount,
             periodStart: dateRange.start,
             periodEnd: dateRange.end,
-            baseSalary: salaryData.baseSalary,
-            overtimeSalary: salaryData.overtimeSalary,
-            totalSalary: salaryData.totalSalary,
+            notes: paymentNotes,
         });
+        setPaymentNotes('');
     }
 
     return (
@@ -174,33 +203,90 @@ const SalaryCalculationModal: React.FC<SalaryModalProps> = ({ employee, workLogs
                             <div>
                                 <h3 className="text-lg font-bold mb-2 text-primary">خلاصه مالی</h3>
                                 <Card className="space-y-2">
-                                    <div className="flex justify-between"><span className="text-on-surface-secondary">حقوق پایه:</span> <span className="font-mono">{salaryData.baseSalary.toLocaleString('fa-IR')} تومان</span></div>
-                                    <div className="flex justify-between"><span className="text-on-surface-secondary">مبلغ اضافه‌کاری:</span> <span className="font-mono">{salaryData.overtimeSalary.toLocaleString('fa-IR')} تومان</span></div>
-                                    <div className="flex justify-between font-bold border-t border-gray-600 pt-2 mt-2"><span className="text-on-surface">حقوق نهایی:</span> <span className="font-mono text-teal-400">{salaryData.totalSalary.toLocaleString('fa-IR')} تومان</span></div>
-                                     {salaryData.isPaid && <p className="text-sm text-green-400 text-center pt-2">پرداخت شده در تاریخ {formatDateShamsi(salaryData.paymentDate!)}</p>}
+                                    <div className="flex justify-between"><span className="text-on-surface-secondary">حقوق محاسبه شده:</span> <span className="font-mono">{salaryData.totalSalary.toLocaleString('fa-IR')} تومان</span></div>
+                                    <div className="flex justify-between"><span className="text-on-surface-secondary">پرداخت شده:</span> <span className="font-mono text-green-400">{periodPaymentData.totalPaid.toLocaleString('fa-IR')} تومان</span></div>
+                                    <div className="flex justify-between font-bold border-t border-gray-600 pt-2 mt-2"><span className="text-on-surface">مانده قابل پرداخت:</span> <span className="font-mono text-yellow-400">{remainingAmount.toLocaleString('fa-IR')} تومان</span></div>
                                 </Card>
                             </div>
-                            
+                             {remainingAmount > 0 && (
+                                <div>
+                                    <h3 className="text-lg font-bold mb-2 text-primary">ثبت پرداخت جدید</h3>
+                                    <form onSubmit={handlePay} className="p-4 bg-gray-800 rounded-lg space-y-4">
+                                        <div>
+                                            <label htmlFor="paymentAmount" className="block text-sm font-medium text-on-surface-secondary mb-1">مبلغ پرداخت (تومان)</label>
+                                            <input 
+                                                type="number" 
+                                                id="paymentAmount" 
+                                                value={paymentAmount} 
+                                                onChange={e => setPaymentAmount(Number(e.target.value))} 
+                                                className="w-full bg-gray-700 border-gray-600 rounded-md px-3 py-2" 
+                                                required 
+                                                min="1"
+                                                max={remainingAmount}
+                                            />
+                                        </div>
+                                        <div>
+                                            <label htmlFor="paymentNotes" className="block text-sm font-medium text-on-surface-secondary mb-1">یادداشت (اختیاری)</label>
+                                            <input 
+                                                type="text" 
+                                                id="paymentNotes" 
+                                                value={paymentNotes} 
+                                                onChange={e => setPaymentNotes(e.target.value)} 
+                                                className="w-full bg-gray-700 border-gray-600 rounded-md px-3 py-2"
+                                                placeholder="مثلا: مساعده، قسط اول حقوق"
+                                            />
+                                        </div>
+                                        <div className="flex justify-end">
+                                            <Button type="submit">ثبت پرداخت</Button>
+                                        </div>
+                                    </form>
+                                </div>
+                            )}
+
                             <div>
-                                <h3 className="text-lg font-bold mb-2 text-primary">لیست کارکرد</h3>
-                                <div className="max-h-60 overflow-y-auto border border-gray-700 rounded-lg">
-                                    <table className="w-full text-right">
-                                        <thead className="sticky top-0 bg-surface">
-                                            <tr className="border-b border-gray-600"><th className="p-3">تاریخ</th><th className="p-3">کارکرد</th><th className="p-3">اضافه‌کاری (ساعت)</th><th className="p-3">توضیحات</th></tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-gray-700">
-                                            {salaryData.filteredLogs.length > 0 ? salaryData.filteredLogs.map(log => (
-                                                <tr key={log.id} className="hover:bg-gray-800">
-                                                    <td className="p-3">{formatDateShamsi(log.date)}</td>
-                                                    <td className="p-3 font-mono">{employee.payType === PayType.HOURLY ? `${log.hoursWorked || 0} ساعت` : (log.workedDay ? '✓ روز کاری' : '✗')}</td>
-                                                    <td className="p-3 font-mono">{log.overtimeHours.toLocaleString('fa-IR')}</td>
-                                                    <td className="p-3 text-sm text-on-surface-secondary">{log.description || '-'}</td>
-                                                </tr>
-                                            )) : (
-                                                <tr><td colSpan={4} className="text-center p-8 text-on-surface-secondary">هیچ کارکردی در این بازه زمانی ثبت نشده است.</td></tr>
-                                            )}
-                                        </tbody>
-                                    </table>
+                                <h3 className="text-lg font-bold mb-2 text-primary">جزئیات دوره</h3>
+                                <div className="mt-4">
+                                    <h4 className="font-semibold mb-2">پرداخت‌های این دوره</h4>
+                                    <div className="max-h-40 overflow-y-auto border border-gray-700 rounded-lg">
+                                        <table className="w-full text-right text-sm">
+                                            <thead className="sticky top-0 bg-surface">
+                                                <tr className="border-b border-gray-600"><th className="p-2">تاریخ</th><th className="p-2">مبلغ</th><th className="p-2">یادداشت</th></tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-gray-700">
+                                                {periodPaymentData.payments.length > 0 ? periodPaymentData.payments.map(p => (
+                                                    <tr key={p.id} className="hover:bg-gray-800">
+                                                        <td className="p-2">{formatDateShamsi(p.paymentDate)}</td>
+                                                        <td className="p-2 font-mono">{p.amount.toLocaleString('fa-IR')}</td>
+                                                        <td className="p-2 text-xs text-on-surface-secondary">{p.notes || '-'}</td>
+                                                    </tr>
+                                                )) : (
+                                                    <tr><td colSpan={3} className="text-center p-4 text-on-surface-secondary">پرداختی برای این دوره ثبت نشده.</td></tr>
+                                                )}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                                <div className="mt-4">
+                                    <h4 className="font-semibold mb-2">کارکرد این دوره</h4>
+                                    <div className="max-h-60 overflow-y-auto border border-gray-700 rounded-lg">
+                                        <table className="w-full text-right">
+                                            <thead className="sticky top-0 bg-surface">
+                                                <tr className="border-b border-gray-600"><th className="p-3">تاریخ</th><th className="p-3">کارکرد</th><th className="p-3">اضافه‌کاری (ساعت)</th><th className="p-3">توضیحات</th></tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-gray-700">
+                                                {salaryData.filteredLogs.length > 0 ? salaryData.filteredLogs.map(log => (
+                                                    <tr key={log.id} className="hover:bg-gray-800">
+                                                        <td className="p-3">{formatDateShamsi(log.date)}</td>
+                                                        <td className="p-3 font-mono">{employee.payType === PayType.HOURLY ? `${log.hoursWorked || 0} ساعت` : (log.workedDay ? '✓ روز کاری' : '✗')}</td>
+                                                        <td className="p-3 font-mono">{log.overtimeHours.toLocaleString('fa-IR')}</td>
+                                                        <td className="p-3 text-sm text-on-surface-secondary">{log.description || '-'}</td>
+                                                    </tr>
+                                                )) : (
+                                                    <tr><td colSpan={4} className="text-center p-8 text-on-surface-secondary">هیچ کارکردی در این بازه زمانی ثبت نشده است.</td></tr>
+                                                )}
+                                            </tbody>
+                                        </table>
+                                    </div>
                                 </div>
                             </div>
                         </>
@@ -208,13 +294,14 @@ const SalaryCalculationModal: React.FC<SalaryModalProps> = ({ employee, workLogs
                 </div>
 
                 <div className="space-y-4">
-                     <h3 className="text-lg font-bold text-primary">سابقه پرداخت‌ها</h3>
-                     <div className="max-h-96 overflow-y-auto border border-gray-700 rounded-lg p-2 space-y-2">
+                     <h3 className="text-lg font-bold text-primary">کل سابقه پرداخت‌ها</h3>
+                     <div className="max-h-[500px] overflow-y-auto border border-gray-700 rounded-lg p-2 space-y-2">
                         {employeePaymentHistory.length > 0 ? employeePaymentHistory.map(p => (
                             <div key={p.id} className="p-3 bg-gray-800 rounded-md text-sm">
-                                <p className="font-bold">{p.totalSalary.toLocaleString('fa-IR')} تومان</p>
-                                <p className="text-xs text-on-surface-secondary">بابت: {formatDateShamsi(p.periodStart)} تا {formatDateShamsi(p.periodEnd)}</p>
+                                <p className="font-bold">{p.amount.toLocaleString('fa-IR')} تومان</p>
+                                <p className="text-xs text-on-surface-secondary">بابت دوره: {formatDateShamsi(p.periodStart)} تا {formatDateShamsi(p.periodEnd)}</p>
                                 <p className="text-xs text-on-surface-secondary">تاریخ پرداخت: {formatDateShamsi(p.paymentDate)}</p>
+                                {p.notes && <p className="text-xs text-on-surface-secondary mt-1">یادداشت: {p.notes}</p>}
                             </div>
                         )) : (
                             <p className="text-center p-8 text-on-surface-secondary text-sm">سابقه پرداختی وجود ندارد.</p>
@@ -222,16 +309,9 @@ const SalaryCalculationModal: React.FC<SalaryModalProps> = ({ employee, workLogs
                      </div>
                 </div>
             </div>
-             <div className="mt-6 flex justify-between items-center">
-                <div>
-                     {salaryData && !salaryData.isPaid && (
-                        <Button onClick={handlePay} disabled={salaryData.totalSalary <= 0}>پرداخت حقوق</Button>
-                    )}
-                </div>
-                <div className="flex justify-end space-x-3 space-x-reverse">
-                    <Button variant="secondary" onClick={onClose}>بستن</Button>
-                    <Button onClick={handlePrintPayslip} disabled={!salaryData || salaryData.filteredLogs.length === 0}>چاپ فیش</Button>
-                </div>
+             <div className="mt-6 flex justify-end items-center space-x-3 space-x-reverse">
+                <Button variant="secondary" onClick={onClose}>بستن</Button>
+                <Button onClick={handlePrintPayslip} disabled={!salaryData || salaryData.filteredLogs.length === 0}>چاپ فیش</Button>
             </div>
         </Modal>
     );
@@ -248,7 +328,7 @@ interface EmployeesProps {
     onAddWorkLog: (workLog: Omit<WorkLog, 'id'>) => void;
     onEditWorkLog: (workLog: WorkLog) => void;
     onDeleteWorkLog: (workLogId: number) => void;
-    onPaySalary: (paymentData: Omit<SalaryPayment, 'id' | 'paymentDate'>) => void;
+    onPaySalary: (paymentData: Omit<SalaryPayment, 'id'>) => void;
     employeeIdToManage: number | null;
     onClearManageEmployee: () => void;
 }

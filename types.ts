@@ -160,10 +160,9 @@ export interface Expense {
 export interface SalaryPayment {
   id: number;
   employeeId: number;
+  paymentDate: string;
+  amount: number;
   periodStart: string;
   periodEnd: string;
-  baseSalary: number;
-  overtimeSalary: number;
-  totalSalary: number;
-  paymentDate: string;
+  notes?: string;
 }

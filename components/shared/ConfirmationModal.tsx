@@ -1,3 +1,4 @@
+
 import React from 'react';
 import Modal from './Modal';
 import Button from './Button';
@@ -8,6 +9,8 @@ interface ConfirmationModalProps {
   message: string;
   onConfirm: () => void;
   onCancel: () => void;
+  confirmButtonText?: string;
+  confirmButtonVariant?: 'primary' | 'secondary' | 'danger';
 }
 
 const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
@@ -16,6 +19,8 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
   message,
   onConfirm,
   onCancel,
+  confirmButtonText = 'تایید و حذف',
+  confirmButtonVariant = 'danger',
 }) => {
   if (!isOpen) return null;
 
@@ -27,8 +32,8 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
           <Button variant="secondary" onClick={onCancel}>
             لغو
           </Button>
-          <Button variant="danger" onClick={onConfirm}>
-            تایید و حذف
+          <Button variant={confirmButtonVariant} onClick={onConfirm}>
+            {confirmButtonText}
           </Button>
         </div>
       </div>
