@@ -141,25 +141,25 @@ const Orders: React.FC<OrdersProps> = ({ orders, onAddOrder, onAddPayment, onDel
                         <table className="w-full text-right">
                             <thead>
                                 <tr className="border-b border-gray-600">
-                                    <th className="p-4">شماره سفارش</th>
-                                    <th className="p-4">تاریخ</th>
-                                    <th className="p-4">مشتری</th>
-                                    <th className="p-4">مبلغ کل</th>
-                                    <th className="p-4">پرداخت شده</th>
-                                    <th className="p-4">وضعیت</th>
-                                    <th className="p-4">اقدامات</th>
+                                    <th className="px-4 py-3">شماره سفارش</th>
+                                    <th className="px-4 py-3">تاریخ</th>
+                                    <th className="px-4 py-3">مشتری</th>
+                                    <th className="px-4 py-3">مبلغ کل</th>
+                                    <th className="px-4 py-3">پرداخت شده</th>
+                                    <th className="px-4 py-3">وضعیت</th>
+                                    <th className="px-4 py-3">اقدامات</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {orders.map(order => (
                                     <tr key={order.id} className="border-b border-gray-700 hover:bg-gray-600/50">
-                                        <td className="p-4 font-medium">#{order.id}</td>
-                                        <td className="p-4">{formatDateShamsi(order.date)}</td>
-                                        <td className="p-4">{customersMap.get(order.customerId) || 'ناشناس'}</td>
-                                        <td className="p-4">{order.totalAmount.toLocaleString('fa-IR')}</td>
-                                        <td className="p-4">{totalPaid(order).toLocaleString('fa-IR')}</td>
-                                        <td className="p-4">{getStatusChip(order.status)}</td>
-                                        <td className="p-4 flex items-center space-x-2 space-x-reverse flex-wrap gap-2">
+                                        <td className="px-4 py-2 font-medium">#{order.id}</td>
+                                        <td className="px-4 py-2">{formatDateShamsi(order.date)}</td>
+                                        <td className="px-4 py-2">{customersMap.get(order.customerId) || 'ناشناس'}</td>
+                                        <td className="px-4 py-2">{order.totalAmount.toLocaleString('fa-IR')}</td>
+                                        <td className="px-4 py-2">{totalPaid(order).toLocaleString('fa-IR')}</td>
+                                        <td className="px-4 py-2">{getStatusChip(order.status)}</td>
+                                        <td className="px-4 py-2 flex items-center space-x-2 space-x-reverse flex-wrap gap-2">
                                             <button onClick={() => openDetailsModal(order)} className="p-1 text-on-surface-secondary hover:text-primary" title="مشاهده جزئیات"><EyeIcon className="w-5 h-5"/></button>
                                             <button onClick={() => onDeleteOrder(order.id)} className="p-1 text-on-surface-secondary hover:text-red-500" title="حذف سفارش"><TrashIcon className="w-5 h-5"/></button>
                                             {order.status === OrderStatus.PENDING && (

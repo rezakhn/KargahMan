@@ -1,21 +1,15 @@
 {
-  "name": "workshop-manager-pro",
-  "private": true,
-  "version": "0.0.0",
-  "type": "module",
+  "name": "workshop-manager-pro-desktop",
+  "version": "1.0.0",
+  "description": "A desktop application to manage a small workshop, using Electron.",
+  "main": "electron.js",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
+    "start": "electron ."
   },
-  "dependencies": {
-    "react-dom": "^19.1.1",
-    "react": "^19.1.1",
-    "recharts": "^3.1.2"
-  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
   "devDependencies": {
-    "@types/node": "^22.14.0",
-    "typescript": "~5.8.2",
-    "vite": "^6.2.0"
+    "electron": "^29.1.5"
   }
 }

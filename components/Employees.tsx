@@ -530,16 +530,16 @@ const Employees: React.FC<EmployeesProps> = (props) => {
                     <div className="overflow-x-auto">
                         <table className="w-full text-right">
                             <thead>
-                                <tr className="border-b border-gray-600"><th className="p-4">نام</th><th className="p-4">نوع پرداخت</th><th className="p-4">نرخ</th><th className="p-4">نرخ اضافه‌کاری</th><th className="p-4">اقدامات</th></tr>
+                                <tr className="border-b border-gray-600"><th className="px-4 py-3">نام</th><th className="px-4 py-3">نوع پرداخت</th><th className="px-4 py-3">نرخ</th><th className="px-4 py-3">نرخ اضافه‌کاری</th><th className="px-4 py-3">اقدامات</th></tr>
                             </thead>
                             <tbody>
                                 {employees.map(emp => (
                                     <tr key={emp.id} className="border-b border-gray-700 hover:bg-gray-600/50">
-                                        <td className="p-4 font-medium">{emp.name}</td>
-                                        <td className="p-4 capitalize">{emp.payType}</td>
-                                        <td className="p-4">{emp.payType === PayType.DAILY ? `${emp.dailyRate.toLocaleString('fa-IR')} / روز` : `${emp.hourlyRate.toLocaleString('fa-IR')} / ساعت`}</td>
-                                        <td className="p-4">{emp.overtimeRate.toLocaleString('fa-IR')} / ساعت</td>
-                                        <td className="p-4 flex items-center space-x-2 space-x-reverse flex-wrap gap-2">
+                                        <td className="px-4 py-2 font-medium">{emp.name}</td>
+                                        <td className="px-4 py-2 capitalize">{emp.payType}</td>
+                                        <td className="px-4 py-2">{emp.payType === PayType.DAILY ? `${emp.dailyRate.toLocaleString('fa-IR')} / روز` : `${emp.hourlyRate.toLocaleString('fa-IR')} / ساعت`}</td>
+                                        <td className="px-4 py-2">{emp.overtimeRate.toLocaleString('fa-IR')} / ساعت</td>
+                                        <td className="px-4 py-2 flex items-center space-x-2 space-x-reverse flex-wrap gap-2">
                                             <button onClick={() => openEditModal(emp)} className="p-1 text-on-surface-secondary hover:text-primary" title="ویرایش"><EditIcon className="w-5 h-5"/></button>
                                             <button onClick={() => onDeleteEmployee(emp.id)} className="p-1 text-on-surface-secondary hover:text-red-500" title="حذف"><TrashIcon className="w-5 h-5"/></button>
                                             <button onClick={() => setSalaryModalEmployee(emp)} className="p-1 text-on-surface-secondary hover:text-green-500" title="محاسبه حقوق"><CalculatorIcon className="w-5 h-5"/></button>

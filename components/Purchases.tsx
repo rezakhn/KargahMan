@@ -116,23 +116,23 @@ const Purchases: React.FC<PurchasesProps> = ({ purchases, onAddPurchase, onEditP
                         <table className="w-full text-right">
                             <thead>
                                 <tr className="border-b border-gray-600">
-                                    <th className="p-4">شماره فاکتور</th>
-                                    <th className="p-4">تاریخ</th>
-                                    <th className="p-4">تأمین‌کننده</th>
-                                    <th className="p-4">تعداد اقلام</th>
-                                    <th className="p-4">مبلغ کل</th>
-                                    <th className="p-4">اقدامات</th>
+                                    <th className="px-4 py-3">شماره فاکتور</th>
+                                    <th className="px-4 py-3">تاریخ</th>
+                                    <th className="px-4 py-3">تأمین‌کننده</th>
+                                    <th className="px-4 py-3">تعداد اقلام</th>
+                                    <th className="px-4 py-3">مبلغ کل</th>
+                                    <th className="px-4 py-3">اقدامات</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {purchases.map(invoice => (
                                     <tr key={invoice.id} className="border-b border-gray-700 hover:bg-gray-600/50">
-                                        <td className="p-4 font-medium">#{invoice.id}</td>
-                                        <td className="p-4">{formatDateShamsi(invoice.date)}</td>
-                                        <td className="p-4">{suppliers.find(s => s.id === invoice.supplierId)?.name || 'ناشناس'}</td>
-                                        <td className="p-4">{invoice.items.length.toLocaleString('fa-IR')}</td>
-                                        <td className="p-4">{invoice.totalAmount.toLocaleString('fa-IR')}</td>
-                                        <td className="p-4 flex items-center space-x-2 space-x-reverse">
+                                        <td className="px-4 py-2 font-medium">#{invoice.id}</td>
+                                        <td className="px-4 py-2">{formatDateShamsi(invoice.date)}</td>
+                                        <td className="px-4 py-2">{suppliers.find(s => s.id === invoice.supplierId)?.name || 'ناشناس'}</td>
+                                        <td className="px-4 py-2">{invoice.items.length.toLocaleString('fa-IR')}</td>
+                                        <td className="px-4 py-2">{invoice.totalAmount.toLocaleString('fa-IR')}</td>
+                                        <td className="px-4 py-2 flex items-center space-x-2 space-x-reverse">
                                             <button onClick={() => openEditModal(invoice)} className="p-1 text-on-surface-secondary hover:text-primary"><EditIcon className="w-5 h-5"/></button>
                                             <button onClick={() => onDeletePurchase(invoice.id)} className="p-1 text-on-surface-secondary hover:text-red-500"><TrashIcon className="w-5 h-5"/></button>
                                         </td>

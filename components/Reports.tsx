@@ -257,16 +257,16 @@ const Reports: React.FC<ReportsProps> = ({ data, employees, dateRange, onDateRan
                  <div className="overflow-x-auto">
                     <table className="w-full text-right">
                         <thead>
-                            <tr className="border-b border-gray-600"><th className="p-4">محصول</th><th className="p-4">تعداد فروش</th><th className="p-4">درآمد کل</th><th className="p-4">هزینه کل (COGS)</th><th className="p-4">سود کل</th></tr>
+                            <tr className="border-b border-gray-600"><th className="px-4 py-3">محصول</th><th className="px-4 py-3">تعداد فروش</th><th className="px-4 py-3">درآمد کل</th><th className="px-4 py-3">هزینه کل (COGS)</th><th className="px-4 py-3">سود کل</th></tr>
                         </thead>
                         <tbody>
                             {data.productProfitabilityReport.map(report => (
                                 <tr key={report.productId} className="border-b border-gray-700 hover:bg-gray-600/50">
-                                    <td className="p-4 font-medium">{report.productName}</td>
-                                    <td className="p-4 font-mono">{report.quantitySold.toLocaleString('fa-IR')}</td>
-                                    <td className="p-4 font-mono">{report.totalRevenue.toLocaleString('fa-IR')}</td>
-                                    <td className="p-4 font-mono text-orange-400">{report.totalCOGS.toLocaleString('fa-IR')}</td>
-                                    <td className="p-4 font-mono font-bold text-teal-400">{report.totalProfit.toLocaleString('fa-IR')}</td>
+                                    <td className="px-4 py-2 font-medium">{report.productName}</td>
+                                    <td className="px-4 py-2 font-mono">{report.quantitySold.toLocaleString('fa-IR')}</td>
+                                    <td className="px-4 py-2 font-mono">{report.totalRevenue.toLocaleString('fa-IR')}</td>
+                                    <td className="px-4 py-2 font-mono text-orange-400">{report.totalCOGS.toLocaleString('fa-IR')}</td>
+                                    <td className="px-4 py-2 font-mono font-bold text-teal-400">{report.totalProfit.toLocaleString('fa-IR')}</td>
                                 </tr>
                             ))}
                              {data.productProfitabilityReport.length === 0 && (
@@ -292,22 +292,22 @@ const Reports: React.FC<ReportsProps> = ({ data, employees, dateRange, onDateRan
                 <div className="overflow-x-auto">
                     <table className="w-full text-right">
                         <thead>
-                            <tr className="border-b border-gray-600"><th className="p-4">نام کارمند</th><th className="p-4">مجموع کارکرد</th><th className="p-4">مجموع اضافه‌کاری (ساعت)</th><th className="p-4">حقوق کل (تومان)</th></tr>
+                            <tr className="border-b border-gray-600"><th className="px-4 py-3">نام کارمند</th><th className="px-4 py-3">مجموع کارکرد</th><th className="px-4 py-3">مجموع اضافه‌کاری (ساعت)</th><th className="px-4 py-3">حقوق کل (تومان)</th></tr>
                         </thead>
                         <tbody>
                            {data.salaryReports.map(report => {
                                const employee = employees.find(e => e.id === report.employeeId);
                                return (
                                 <tr key={report.employeeId} className="border-b border-gray-700 hover:bg-gray-600/50">
-                                    <td className="p-4 font-medium">{report.employeeName}</td>
-                                    <td className="p-4 font-mono">
+                                    <td className="px-4 py-2 font-medium">{report.employeeName}</td>
+                                    <td className="px-4 py-2 font-mono">
                                         {employee?.payType === PayType.HOURLY
                                             ? `${report.totalHours.toLocaleString('fa-IR')} ساعت`
                                             : `${data.workLogs.filter(l => l.employeeId === report.employeeId && l.workedDay).length.toLocaleString('fa-IR')} روز`
                                         }
                                     </td>
-                                    <td className="p-4 font-mono">{report.totalOvertime.toLocaleString('fa-IR')}</td>
-                                    <td className="p-4 font-mono font-bold text-green-400">{report.totalSalary.toLocaleString('fa-IR')}</td>
+                                    <td className="px-4 py-2 font-mono">{report.totalOvertime.toLocaleString('fa-IR')}</td>
+                                    <td className="px-4 py-2 font-mono font-bold text-green-400">{report.totalSalary.toLocaleString('fa-IR')}</td>
                                 </tr>
                                )
                             })}

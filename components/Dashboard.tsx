@@ -50,9 +50,9 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, parts, setView, financial
 
     return (
         <div>
-            <h1 className="text-3xl font-bold mb-6 text-on-surface">داشبورد</h1>
+            <h1 className="text-3xl font-bold mb-4 text-on-surface">داشبورد</h1>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <Card>
                     <div className="flex items-center">
                         <div className="p-3 bg-green-500/20 rounded-full">
@@ -99,7 +99,7 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, parts, setView, financial
                 </Card>
             </div>
 
-            <div className="mt-10 grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-2">
                     <h2 className="text-2xl font-bold mb-4 text-on-surface">دسترسی سریع</h2>
                     <div className="flex flex-wrap gap-4">
@@ -109,7 +109,7 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, parts, setView, financial
                         <Button onClick={() => setView('expenses')} icon={<DocumentTextIcon />}>ثبت هزینه</Button>
                     </div>
 
-                    <div className="mt-10">
+                    <div className="mt-8">
                         <h2 className="text-2xl font-bold mb-4 text-on-surface">نمای کلی مالی (بر اساس درآمد)</h2 >
                         <Card className="h-80">
                             {financials.revenue > 0 ? (

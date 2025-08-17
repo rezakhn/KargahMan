@@ -212,19 +212,19 @@ const SuppliersCustomers: React.FC<SuppliersCustomersProps> = (props) => {
                                 <table className="w-full text-right">
                                     <thead>
                                         <tr className="border-b border-gray-600">
-                                            <th className="p-4">نام</th>
-                                            <th className="p-4">شماره تماس</th>
-                                            <th className="p-4">نوع فعالیت</th>
-                                            <th className="p-4">اقدامات</th>
+                                            <th className="px-4 py-3">نام</th>
+                                            <th className="px-4 py-3">شماره تماس</th>
+                                            <th className="px-4 py-3">نوع فعالیت</th>
+                                            <th className="px-4 py-3">اقدامات</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {filteredSuppliers.map(s => (
                                             <tr key={s.id} className="border-b border-gray-700 hover:bg-gray-600/50">
-                                                <td className="p-4 font-medium">{s.name}</td>
-                                                <td className="p-4 font-mono">{s.phone || '-'}</td>
-                                                <td className="p-4">{s.activityType || '-'}</td>
-                                                <td className="p-4 flex items-center space-x-2 space-x-reverse">
+                                                <td className="px-4 py-2 font-medium">{s.name}</td>
+                                                <td className="px-4 py-2 font-mono">{s.phone || '-'}</td>
+                                                <td className="px-4 py-2">{s.activityType || '-'}</td>
+                                                <td className="px-4 py-2 flex items-center space-x-2 space-x-reverse">
                                                     <button onClick={() => openModal('EDIT_SUPPLIER', s)} className="p-1 text-on-surface-secondary hover:text-primary"><EditIcon className="w-5 h-5"/></button>
                                                     <button onClick={() => onDeleteSupplier(s.id)} className="p-1 text-on-surface-secondary hover:text-red-500"><TrashIcon className="w-5 h-5"/></button>
                                                 </td>
@@ -258,19 +258,19 @@ const SuppliersCustomers: React.FC<SuppliersCustomersProps> = (props) => {
                                 <table className="w-full text-right">
                                     <thead>
                                         <tr className="border-b border-gray-600">
-                                            <th className="p-4">نام</th>
-                                            <th className="p-4">شماره تماس</th>
-                                            <th className="p-4">شغل</th>
-                                            <th className="p-4">اقدامات</th>
+                                            <th className="px-4 py-3">نام</th>
+                                            <th className="px-4 py-3">شماره تماس</th>
+                                            <th className="px-4 py-3">شغل</th>
+                                            <th className="px-4 py-3">اقدامات</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {filteredCustomers.map(c => (
                                             <tr key={c.id} className="border-b border-gray-700 hover:bg-gray-600/50">
-                                                <td className="p-4 font-medium">{c.name}</td>
-                                                <td className="p-4 font-mono">{c.phone || '-'}</td>
-                                                <td className="p-4">{c.job || '-'}</td>
-                                                <td className="p-4 flex items-center space-x-2 space-x-reverse">
+                                                <td className="px-4 py-2 font-medium">{c.name}</td>
+                                                <td className="px-4 py-2 font-mono">{c.phone || '-'}</td>
+                                                <td className="px-4 py-2">{c.job || '-'}</td>
+                                                <td className="px-4 py-2 flex items-center space-x-2 space-x-reverse">
                                                     <button onClick={() => setHistoryModalCustomer(c)} className="p-1 text-on-surface-secondary hover:text-blue-400" title="تاریخچه سفارشات"><ClipboardDocumentListIcon className="w-5 h-5"/></button>
                                                     <button onClick={() => openModal('EDIT_CUSTOMER', c)} className="p-1 text-on-surface-secondary hover:text-primary" title="ویرایش"><EditIcon className="w-5 h-5"/></button>
                                                     <button onClick={() => onDeleteCustomer(c.id)} className="p-1 text-on-surface-secondary hover:text-red-500" title="حذف"><TrashIcon className="w-5 h-5"/></button>

@@ -88,21 +88,21 @@ const Expenses: React.FC<ExpensesProps> = ({ expenses, onAddExpense, onEditExpen
                         <table className="w-full text-right">
                             <thead>
                                 <tr className="border-b border-gray-600">
-                                    <th className="p-4">تاریخ</th>
-                                    <th className="p-4">شرح هزینه</th>
-                                    <th className="p-4">دسته‌بندی</th>
-                                    <th className="p-4">مبلغ (تومان)</th>
-                                    <th className="p-4">اقدامات</th>
+                                    <th className="px-4 py-3">تاریخ</th>
+                                    <th className="px-4 py-3">شرح هزینه</th>
+                                    <th className="px-4 py-3">دسته‌بندی</th>
+                                    <th className="px-4 py-3">مبلغ (تومان)</th>
+                                    <th className="px-4 py-3">اقدامات</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {expenses.map(expense => (
                                     <tr key={expense.id} className="border-b border-gray-700 hover:bg-gray-600/50">
-                                        <td className="p-4">{formatDateShamsi(expense.date)}</td>
-                                        <td className="p-4 font-medium">{expense.description}</td>
-                                        <td className="p-4">{expense.category}</td>
-                                        <td className="p-4 font-mono">{expense.amount.toLocaleString('fa-IR')}</td>
-                                        <td className="p-4 flex items-center space-x-2 space-x-reverse">
+                                        <td className="px-4 py-2">{formatDateShamsi(expense.date)}</td>
+                                        <td className="px-4 py-2 font-medium">{expense.description}</td>
+                                        <td className="px-4 py-2">{expense.category}</td>
+                                        <td className="px-4 py-2 font-mono">{expense.amount.toLocaleString('fa-IR')}</td>
+                                        <td className="px-4 py-2 flex items-center space-x-2 space-x-reverse">
                                             <button onClick={() => openEditModal(expense)} className="p-1 text-on-surface-secondary hover:text-primary"><EditIcon className="w-5 h-5"/></button>
                                             <button onClick={() => onDeleteExpense(expense.id)} className="p-1 text-on-surface-secondary hover:text-red-500"><TrashIcon className="w-5 h-5"/></button>
                                         </td>

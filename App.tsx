@@ -934,9 +934,9 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="flex h-screen bg-background text-on-surface">
+    <div className="flex h-screen bg-background text-on-surface overflow-hidden">
       <Sidebar view={view} setView={setView} />
-      <main className="flex-1 p-6 lg:p-10 overflow-y-auto">
+      <main className="flex-1 p-4 lg:p-6 overflow-y-auto">
         {renderView()}
       </main>
       <ToastContainer toasts={toasts} />

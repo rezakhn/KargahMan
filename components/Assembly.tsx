@@ -131,7 +131,7 @@ const Assembly: React.FC<AssemblyProps> = (props) => {
                     <div className="overflow-x-auto">
                         <table className="w-full text-right">
                             <thead>
-                                <tr className="border-b border-gray-600"><th className="p-4">شماره</th><th className="p-4">تاریخ</th><th className="p-4">محصول</th><th className="p-4">تعداد</th><th className="p-4">هزینه نهایی/واحد</th><th className="p-4">وضعیت</th><th className="p-4">اقدامات</th></tr>
+                                <tr className="border-b border-gray-600"><th className="px-4 py-3">شماره</th><th className="px-4 py-3">تاریخ</th><th className="px-4 py-3">محصول</th><th className="px-4 py-3">تعداد</th><th className="px-4 py-3">هزینه نهایی/واحد</th><th className="px-4 py-3">وضعیت</th><th className="px-4 py-3">اقدامات</th></tr>
                             </thead>
                             <tbody>
                                 {assemblyOrders.map(order => {
@@ -139,13 +139,13 @@ const Assembly: React.FC<AssemblyProps> = (props) => {
                                     const costPerUnit = order.quantity > 0 ? totalCost / order.quantity : 0;
                                     return (
                                         <tr key={order.id} className="border-b border-gray-700 hover:bg-gray-600/50">
-                                            <td className="p-4 font-medium">#{order.id}</td>
-                                            <td className="p-4">{formatDateShamsi(order.date)}</td>
-                                            <td className="p-4">{partsMap.get(order.partId)?.name || '؟'}</td>
-                                            <td className="p-4 font-mono">{order.quantity.toLocaleString('fa-IR')}</td>
-                                            <td className="p-4 font-mono">{order.status === AssemblyStatus.COMPLETED ? Math.round(costPerUnit).toLocaleString('fa-IR') : '-'}</td>
-                                            <td className="p-4">{getStatusChip(order.status)}</td>
-                                            <td className="p-4 flex items-center space-x-2 space-x-reverse">
+                                            <td className="px-4 py-2 font-medium">#{order.id}</td>
+                                            <td className="px-4 py-2">{formatDateShamsi(order.date)}</td>
+                                            <td className="px-4 py-2">{partsMap.get(order.partId)?.name || '؟'}</td>
+                                            <td className="px-4 py-2 font-mono">{order.quantity.toLocaleString('fa-IR')}</td>
+                                            <td className="px-4 py-2 font-mono">{order.status === AssemblyStatus.COMPLETED ? Math.round(costPerUnit).toLocaleString('fa-IR') : '-'}</td>
+                                            <td className="px-4 py-2">{getStatusChip(order.status)}</td>
+                                            <td className="px-4 py-2 flex items-center space-x-2 space-x-reverse">
                                                 <button onClick={() => openDetailsModal(order)} className="p-1 text-on-surface-secondary hover:text-primary" title="مشاهده جزئیات"><EyeIcon className="w-5 h-5"/></button>
                                                 <button onClick={() => onDeleteAssemblyOrder(order.id)} className="p-1 text-on-surface-secondary hover:text-red-500" title="حذف"><TrashIcon className="w-5 h-5"/></button>
                                             </td>

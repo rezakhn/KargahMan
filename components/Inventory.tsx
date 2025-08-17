@@ -113,23 +113,23 @@ const Inventory: React.FC<InventoryProps> = ({ parts, onAddPart, onEditPart, onD
                         <table className="w-full text-right">
                             <thead>
                                 <tr className="border-b border-gray-600">
-                                    <th className="p-4">نام قطعه</th>
-                                    <th className="p-4">نوع</th>
-                                    <th className="p-4">موجودی</th>
-                                    <th className="p-4">هزینه واحد (تومان)</th>
-                                    <th className="p-4">وضعیت</th>
-                                    <th className="p-4">اقدامات</th>
+                                    <th className="px-4 py-3">نام قطعه</th>
+                                    <th className="px-4 py-3">نوع</th>
+                                    <th className="px-4 py-3">موجودی</th>
+                                    <th className="px-4 py-3">هزینه واحد (تومان)</th>
+                                    <th className="px-4 py-3">وضعیت</th>
+                                    <th className="px-4 py-3">اقدامات</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {parts.map(part => (
                                     <tr key={part.id} className="border-b border-gray-700 hover:bg-gray-600/50">
-                                        <td className="p-4 font-medium">{part.name}</td>
-                                        <td className="p-4">{part.isAssembly ? 'مونتاژی/محصول' : 'ماده خام'}</td>
-                                        <td className="p-4 font-mono">{part.stock.toLocaleString('fa-IR')}</td>
-                                        <td className="p-4 font-mono">{Math.round(calculatePartCost(part.id)).toLocaleString('fa-IR')}</td>
-                                        <td className="p-4">{getStockStatus(part)}</td>
-                                        <td className="p-4 flex items-center space-x-2 space-x-reverse">
+                                        <td className="px-4 py-2 font-medium">{part.name}</td>
+                                        <td className="px-4 py-2">{part.isAssembly ? 'مونتاژی/محصول' : 'ماده خام'}</td>
+                                        <td className="px-4 py-2 font-mono">{part.stock.toLocaleString('fa-IR')}</td>
+                                        <td className="px-4 py-2 font-mono">{Math.round(calculatePartCost(part.id)).toLocaleString('fa-IR')}</td>
+                                        <td className="px-4 py-2">{getStockStatus(part)}</td>
+                                        <td className="px-4 py-2 flex items-center space-x-2 space-x-reverse">
                                             <button onClick={() => openEditModal(part)} className="p-1 text-on-surface-secondary hover:text-primary"><EditIcon className="w-5 h-5"/></button>
                                             <button onClick={() => onDeletePart(part.id)} className="p-1 text-on-surface-secondary hover:text-red-500"><TrashIcon className="w-5 h-5"/></button>
                                         </td>
