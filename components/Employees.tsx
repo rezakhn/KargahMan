@@ -10,12 +10,9 @@ import { VazirmatnFont } from './VazirFont.ts';
 import PersianDatePicker from './shared/PersianDatePicker.tsx';
 import { getShamsiMonthStartEnd, getTodayGregorian } from './shared/dateConverter.ts';
 import jalaali from 'jalaali-js';
+import { jsPDF } from 'jspdf';
+import 'jspdf-autotable';
 
-declare global {
-  interface Window {
-    jspdf: any;
-  }
-}
 
 const formatDateShamsi = (isoDate: string): string => {
     if (!isoDate) return '';
@@ -110,7 +107,6 @@ const SalaryCalculationModal: React.FC<SalaryModalProps> = ({ employee, workLogs
     }, [salaryPayments, employee]);
 
     const handlePrintPayslip = () => {
-        const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
         
         doc.addFileToVFS("Vazirmatn-Regular.ttf", VazirmatnFont);

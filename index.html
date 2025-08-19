@@ -5,76 +5,24 @@
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>مدیریت کارگاه حرفه‌ای</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/jspdf@latest/dist/jspdf.umd.min.js"></script>
-    <script src="https://unpkg.com/jspdf-autotable@latest/dist/jspdf.plugin.autotable.js"></script>
-    <link rel="stylesheet" href="https://unpkg.com/react-modern-persian-datepicker/lib/DatePicker.css"/>
-    <style>
-      /* Custom styles for the date picker to match the dark theme */
-      .DatePicker__calendarContainer {
-        background-color: #374151 !important; /* surface */
-        border-color: #4b5563 !important; /* gray-600 */
-      }
-      .DatePicker__monthArrow,
-      .DatePicker__monthText,
-      .DatePicker__yearText,
-      .Calendar__day {
-        color: #f3f4f6 !important; /* on-surface */
-      }
-       .DatePicker__input {
-        color: #f3f4f6 !important;
-       }
-      .Calendar__day:hover {
-        background-color: #4b5563 !important; /* gray-600 */
-      }
-      .Calendar__day.-selected, .Calendar__day.-selectedStart, .Calendar__day.-selectedEnd {
-        background-color: #14b8a6 !important; /* primary */
-        color: white !important;
-      }
-      .Calendar__day.-today {
-        border: 1px solid #14b8a6 !important;
-        color: #14b8a6 !important;
-      }
-       .Calendar__weekDay {
-        color: #9ca3af !important; /* on-surface-secondary */
-      }
-      .DatePicker__calendarHeader > span {
-         color: #f3f4f6 !important;
-      }
-    </style>
-    <script>
-      tailwind.config = {
-        darkMode: 'class',
-        theme: {
-          extend: {
-            colors: {
-              'primary': '#14b8a6', // teal-500
-              'primary-focus': '#0d9488', // teal-600
-              'background': '#1f2937', // gray-800
-              'surface': '#374151', // gray-700
-              'on-surface': '#f3f4f6', // gray-100
-              'on-surface-secondary': '#9ca3af' // gray-400
-            }
-          }
-        }
-      }
-    </script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <script type="importmap">
+<script type="importmap">
 {
   "imports": {
+    "react": "https://esm.sh/react@^19.1.1",
     "react-dom/": "https://esm.sh/react-dom@^19.1.1/",
     "react/": "https://esm.sh/react@^19.1.1/",
-    "react": "https://esm.sh/react@^19.1.1",
     "recharts": "https://esm.sh/recharts@^3.1.2",
-    "react-modern-persian-datepicker": "https://esm.sh/react-modern-persian-datepicker@3.3.1",
-    "jalaali-js": "https://esm.sh/jalaali-js@1.2.6"
+    "jalaali-js": "https://esm.sh/jalaali-js@^1.2.8",
+    "jspdf": "https://esm.sh/jspdf@^3.0.1",
+    "jspdf-autotable": "https://esm.sh/jspdf-autotable@^5.0.2",
+    "vite": "https://esm.sh/vite@^7.1.2",
+    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.0.0"
   }
 }
 </script>
 </head>
   <body class="bg-gray-900 text-on-surface antialiased">
     <div id="root"></div>
-    <script type="text/babel" data-type="module" data-presets="react,typescript" src="./index.tsx"></script>
+    <script type="module" src="/index.tsx"></script>
   </body>
 </html>

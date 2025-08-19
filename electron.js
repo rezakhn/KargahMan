@@ -1,43 +1,45 @@
 const { app, BrowserWindow } = require('electron');
 const path = require('path');
 
+// Vite dev server URL
+const devServerUrl = 'http://localhost:5173';
+
 function createWindow() {
-  // Create the browser window.
   const mainWindow = new BrowserWindow({
     width: 1280,
     height: 800,
     webPreferences: {
-      // It's recommended to turn off nodeIntegration for security
-      // and use a preload script for any Node.js access.
       nodeIntegration: false,
       contextIsolation: true,
     }
   });
 
-  // Load the index.html of the app.
-  mainWindow.loadFile('index.html');
+  // Check if we are in development mode.
+  const isDev = !app.isPackaged;
 
-  // Uncomment to open the DevTools.
-  // mainWindow.webContents.openDevTools();
+  if (isDev) {
+    // In development, load from the Vite dev server.
+    mainWindow.loadURL(devServerUrl).catch(err => {
+      console.error('Error loading URL, is the Vite dev server running? Run `npm run dev` in a separate terminal.', err);
+    });
+    // Automatically open DevTools in development
+    mainWindow.webContents.openDevTools();
+  } else {
+    // In production, load the built index.html file from the 'dist' directory.
+    mainWindow.loadFile(path.join(__dirname, 'dist/index.html'));
+  }
 }
 
-// This method will be called when Electron has finished
-// initialization and is ready to create browser windows.
-app.whenReady().then(() => {
-  createWindow();
+app.whenReady().then(createWindow);
 
-  app.on('activate', function () {
-    // On macOS it's common to re-create a window in the app when the
-    // dock icon is clicked and there are no other windows open.
-    if (BrowserWindow.getAllWindows().length === 0) {
-        createWindow();
-    }
-  });
-});
-
-// Quit when all windows are closed, except on macOS.
-app.on('window-all-closed', function () {
+app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit();
+  }
+});
+
+app.on('activate', () => {
+  if (BrowserWindow.getAllWindows().length === 0) {
+    createWindow();
   }
 });

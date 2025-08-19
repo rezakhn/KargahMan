@@ -4,12 +4,34 @@
   "description": "A desktop application to manage a small workshop, using Electron.",
   "main": "electron.js",
   "scripts": {
-    "start": "electron electron.js"
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "start": "electron .",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "jalaali-js": "^1.2.6",
+    "jspdf": "^2.5.1",
+    "jspdf-autotable": "^3.8.2",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-modern-persian-datepicker": "^3.3.1",
+    "recharts": "^2.12.3"
+  },
+  "devDependencies": {
+    "@types/jalaali-js": "^1.1.2",
+    "@types/node": "^20.12.7",
+    "@types/react": "^18.2.79",
+    "@types/react-dom": "^18.2.25",
+    "@vitejs/plugin-react": "^4.2.1",
+    "autoprefixer": "^10.4.19",
+    "electron": "^29.1.5",
+    "postcss": "^8.4.38",
+    "tailwindcss": "^3.4.3",
+    "typescript": "^5.2.2",
+    "vite": "^5.2.8"
   },
   "keywords": [],
   "author": "",
-  "license": "MIT",
-  "devDependencies": {
-    "electron": "^29.1.5"
-  }
+  "license": "MIT"
 }

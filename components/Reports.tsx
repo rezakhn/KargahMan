@@ -7,12 +7,9 @@ import Button from './shared/Button.tsx';
 import { DownloadIcon } from './icons/Icons.tsx';
 import { VazirmatnFont } from './VazirFont.ts';
 import PersianDatePicker from './shared/PersianDatePicker.tsx';
+import { jsPDF } from 'jspdf';
+import 'jspdf-autotable';
 
-declare global {
-  interface Window {
-    jspdf: any;
-  }
-}
 
 interface ReportsProps {
     data: {
@@ -149,7 +146,6 @@ const Reports: React.FC<ReportsProps> = ({ data, employees, dateRange, onDateRan
     };
     
     const generatePdf = () => {
-        const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
         
         doc.addFileToVFS("Vazirmatn-Regular.ttf", VazirmatnFont);
