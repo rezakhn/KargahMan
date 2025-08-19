@@ -1,11 +1,12 @@
 import React, { useState, useMemo } from 'react';
-import type { SalesOrder, Part, Customer, Payment } from '../types.ts';
+import type { SalesOrder, Part, Contact, Payment } from '../types.ts';
 import { OrderStatus } from '../types.ts';
 import Card from './shared/Card.tsx';
 import Button from './shared/Button.tsx';
 import Modal from './shared/Modal.tsx';
 import { AddIcon, TrashIcon, LowStockIcon, DocumentTextIcon, TruckIcon, EyeIcon } from './icons/Icons.tsx';
 import EmptyState from './shared/EmptyState.tsx';
+import PersianDatePicker from './shared/PersianDatePicker.tsx';
 
 const formatDateShamsi = (isoDate: string): string => {
     if (!isoDate) return '';
@@ -23,7 +24,7 @@ interface OrdersProps {
     onDeleteOrder: (orderId: number) => void;
     onDeliverOrder: (orderId: number) => void;
     parts: Part[];
-    customers: Customer[];
+    customers: Contact[];
 }
 
 const Orders: React.FC<OrdersProps> = ({ orders, onAddOrder, onAddPayment, onDeleteOrder, onDeliverOrder, parts, customers }) => {
@@ -194,7 +195,11 @@ const Orders: React.FC<OrdersProps> = ({ orders, onAddOrder, onAddPayment, onDel
                         </div>
                         <div>
                              <label htmlFor="deliveryDate" className="block text-sm font-medium text-on-surface-secondary mb-1">تاریخ تحویل</label>
-                            <input type="date" id="deliveryDate" value={deliveryDate} onChange={e => setDeliveryDate(e.target.value)} className="w-full bg-gray-800 border border-gray-600 rounded-md px-3 py-2 focus:ring-primary focus:border-primary" />
+                            <PersianDatePicker
+                                value={deliveryDate}
+                                onChange={date => setDeliveryDate(date)}
+                                inputId="deliveryDate"
+                            />
                         </div>
                     </div>
 

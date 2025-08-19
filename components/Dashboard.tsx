@@ -1,6 +1,6 @@
 import React from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
-import type { SalesOrder, Part, ViewType, Customer, Employee } from '../types.ts';
+import type { SalesOrder, Part, ViewType, Contact, Employee } from '../types.ts';
 import { OrderStatus } from '../types.ts';
 import Card from './shared/Card.tsx';
 import Button from './shared/Button.tsx';
@@ -30,7 +30,7 @@ interface DashboardProps {
     attendanceAlerts: Employee[];
     lowStockItems: Part[];
     onManageEmployeeLog: (employeeId: number) => void;
-    customers: Customer[];
+    customers: Contact[];
 }
 
 const Dashboard: React.FC<DashboardProps> = ({ orders, parts, setView, financials, overdueUnpaidOrders, attendanceAlerts, lowStockItems, onManageEmployeeLog, customers }) => {

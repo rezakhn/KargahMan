@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import type { ViewType, Employee, PurchaseInvoice, Part, SalesOrder, Customer, Supplier, AssemblyOrder, PurchaseItem, OrderItem, WorkLog, Payment, Toast, ProductProfitabilityReport, SalaryReport, ProductionLog, Expense, SalaryPayment } from './types.ts';
-import { PayType, OrderStatus, AssemblyStatus } from './types.ts';
+import type { ViewType, Employee, PurchaseInvoice, Part, SalesOrder, Contact, AssemblyOrder, PurchaseItem, OrderItem, WorkLog, Payment, Toast, ProductProfitabilityReport, SalaryReport, ProductionLog, Expense, SalaryPayment } from './types.ts';
+import { PayType, OrderStatus, AssemblyStatus, ContactRole } from './types.ts';
 import Sidebar from './components/Sidebar.tsx';
 import Dashboard from './components/Dashboard.tsx';
 import Employees from './components/Employees.tsx';
@@ -133,7 +133,7 @@ const App: React.FC = () => {
   ]);
 
   const [purchases, setPurchases] = usePersistentState<PurchaseInvoice[]>('purchases', [
-    { id: 1, supplierId: 1, date: '2023-10-01', items: [{id: 1, itemName: 'میلگرد فولادی خام', quantity: 50, unitPrice: 100000}], totalAmount: 5000000 },
+    { id: 1, supplierId: 3, date: '2023-10-01', items: [{id: 1, itemName: 'میلگرد فولادی خام', quantity: 50, unitPrice: 100000}], totalAmount: 5000000 },
   ]);
 
   const [orders, setOrders] = usePersistentState<SalesOrder[]>('orders', [
@@ -151,14 +151,11 @@ const App: React.FC = () => {
       { id: 1, assemblyOrderId: 1, employeeId: 1, date: '2023-10-10', hoursSpent: 2 },
   ]);
 
-  const [customers, setCustomers] = usePersistentState<Customer[]>('customers', [
-    { id: 1, name: 'شرکت جهانی', contactInfo: 'contact@globalcorp.com', phone: '021-12345678', address: 'تهران، خیابان اصلی', job: 'تولیدی' },
-    { id: 2, name: 'کسب‌وکار محلی', contactInfo: 'sales@localbiz.com', phone: '031-87654321', address: 'اصفهان، میدان نقش جهان', job: 'خدماتی' },
-  ]);
-
-  const [suppliers, setSuppliers] = usePersistentState<Supplier[]>('suppliers', [
-      { id: 1, name: 'فولاد گستر', contactInfo: 'info@metalsupply.com', phone: '021-11112222', address: 'شهرک صنعتی', activityType: 'تامین مواد اولیه' },
-      { id: 2, name: 'کارخانه قطعات', contactInfo: 'orders@componentfactory.com', phone: '021-33334444', address: 'جاده مخصوص', activityType: 'تولید قطعات' },
+  const [contacts, setContacts] = usePersistentState<Contact[]>('contacts', [
+    { id: 1, name: 'شرکت جهانی', roles: [ContactRole.CUSTOMER], contactInfo: 'contact@globalcorp.com', phone: '021-12345678', address: 'تهران، خیابان اصلی', job: 'تولیدی' },
+    { id: 2, name: 'کسب‌وکار محلی', roles: [ContactRole.CUSTOMER], contactInfo: 'sales@localbiz.com', phone: '031-87654321', address: 'اصفهان، میدان نقش جهان', job: 'خدماتی' },
+    { id: 3, name: 'فولاد گستر', roles: [ContactRole.SUPPLIER], contactInfo: 'info@metalsupply.com', phone: '021-11112222', address: 'شهرک صنعتی', activityType: 'تامین مواد اولیه' },
+    { id: 4, name: 'کارخانه قطعات', roles: [ContactRole.SUPPLIER], contactInfo: 'orders@componentfactory.com', phone: '021-33334444', address: 'جاده مخصوص', activityType: 'تولید قطعات' },
   ]);
 
   const [expenses, setExpenses] = usePersistentState<Expense[]>('expenses', [
@@ -167,6 +164,9 @@ const App: React.FC = () => {
   ]);
 
   const [salaryPayments, setSalaryPayments] = usePersistentState<SalaryPayment[]>('salaryPayments', []);
+  
+  const suppliers = useMemo(() => contacts.filter(c => c.roles.includes(ContactRole.SUPPLIER)), [contacts]);
+  const customers = useMemo(() => contacts.filter(c => c.roles.includes(ContactRole.CUSTOMER)), [contacts]);
 
   const partsMap = useMemo(() => new Map(parts.map(p => [p.id, p])), [parts]);
   const employeesMap = useMemo(() => new Map(employees.map(e => [e.id, e])), [employees]);
@@ -210,7 +210,7 @@ const App: React.FC = () => {
   };
   
   // --- DATA PERSISTENCE LOGIC ---
-  const allData = useMemo(() => ({ employees, workLogs, parts, purchases, orders, assemblyOrders, customers, suppliers, productionLogs, expenses, salaryPayments }), [employees, workLogs, parts, purchases, orders, assemblyOrders, customers, suppliers, productionLogs, expenses, salaryPayments]);
+  const allData = useMemo(() => ({ employees, workLogs, parts, purchases, orders, assemblyOrders, contacts, productionLogs, expenses, salaryPayments }), [employees, workLogs, parts, purchases, orders, assemblyOrders, contacts, productionLogs, expenses, salaryPayments]);
   
   const handleConnectFile = async () => {
     try {
@@ -295,13 +295,12 @@ const App: React.FC = () => {
     setPurchases(data.purchases || []);
     setOrders(data.orders || []);
     setAssemblyOrders(data.assemblyOrders || []);
-    setCustomers(data.customers || []);
-    setSuppliers(data.suppliers || []);
+    setContacts(data.contacts || []);
     setProductionLogs(data.productionLogs || []);
     setExpenses(data.expenses || []);
     setSalaryPayments(data.salaryPayments || []);
     showToast("اطلاعات با موفقیت بازیابی شد.");
-  }, [setAssemblyOrders, setCustomers, setEmployees, setExpenses, setOrders, setParts, setProductionLogs, setPurchases, setSalaryPayments, setSuppliers, setWorkLogs, showToast]);
+  }, [setAssemblyOrders, setContacts, setEmployees, setExpenses, setOrders, setParts, setProductionLogs, setPurchases, setSalaryPayments, setWorkLogs, showToast]);
   
   const handleLoadDataFromFile = async () => {
     let handleToLoadFrom: FileSystemFileHandle | null = fileHandle;
@@ -665,32 +664,18 @@ const App: React.FC = () => {
       }, "بله، بازیابی کن", "primary");
   };
   
-    const handleAddSupplier = (supplier: Omit<Supplier, 'id'>) => {
-        setSuppliers(prev => [...prev, { ...supplier, id: Date.now() }]);
-        showToast('تأمین‌کننده جدید اضافه شد.');
+    const handleAddContact = (contact: Omit<Contact, 'id'>) => {
+        setContacts(prev => [...prev, { ...contact, id: Date.now() }]);
+        showToast('مخاطب جدید اضافه شد.');
     };
-    const handleEditSupplier = (updatedSupplier: Supplier) => {
-        setSuppliers(prev => prev.map(s => s.id === updatedSupplier.id ? updatedSupplier : s));
-        showToast('اطلاعات تأمین‌کننده ویرایش شد.');
+    const handleEditContact = (updatedContact: Contact) => {
+        setContacts(prev => prev.map(c => c.id === updatedContact.id ? updatedContact : c));
+        showToast('اطلاعات مخاطب ویرایش شد.');
     };
-    const handleDeleteSupplier = (id: number) => {
-        showConfirmation('حذف تأمین‌کننده', 'آیا از حذف این تأمین‌کننده اطمینان دارید؟', () => {
-            setSuppliers(prev => prev.filter(s => s.id !== id));
-            showToast('تأمین‌کننده حذف شد.', 'info');
-        });
-    };
-    const handleAddCustomer = (customer: Omit<Customer, 'id'>) => {
-        setCustomers(prev => [...prev, { ...customer, id: Date.now() }]);
-        showToast('مشتری جدید اضافه شد.');
-    };
-    const handleEditCustomer = (updatedCustomer: Customer) => {
-        setCustomers(prev => prev.map(c => c.id === updatedCustomer.id ? updatedCustomer : c));
-        showToast('اطلاعات مشتری ویرایش شد.');
-    };
-    const handleDeleteCustomer = (id: number) => {
-        showConfirmation('حذف مشتری', 'آیا از حذف این مشتری اطمینان دارید؟', () => {
-            setCustomers(prev => prev.filter(c => c.id !== id));
-            showToast('مشتری حذف شد.', 'info');
+    const handleDeleteContact = (id: number) => {
+        showConfirmation('حذف مخاطب', 'آیا از حذف این مخاطب اطمینان دارید؟', () => {
+            setContacts(prev => prev.filter(c => c.id !== id));
+            showToast('مخاطب حذف شد.', 'info');
         });
     };
     
@@ -894,16 +879,12 @@ const App: React.FC = () => {
                 />;
       case 'suppliers_customers':
         return <SuppliersCustomers 
-                    suppliers={suppliers} 
-                    customers={customers}
+                    contacts={contacts}
                     orders={orders}
                     partsMap={partsMap}
-                    onAddSupplier={handleAddSupplier}
-                    onEditSupplier={handleEditSupplier}
-                    onDeleteSupplier={handleDeleteSupplier}
-                    onAddCustomer={handleAddCustomer}
-                    onEditCustomer={handleEditCustomer}
-                    onDeleteCustomer={handleDeleteCustomer}
+                    onAddContact={handleAddContact}
+                    onEditContact={handleEditContact}
+                    onDeleteContact={handleDeleteContact}
                 />;
        case 'expenses':
         return <Expenses

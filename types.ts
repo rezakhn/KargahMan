@@ -22,12 +22,21 @@ export interface WorkLog {
   description?: string;
 }
 
-export interface Supplier {
+export enum ContactRole {
+    CUSTOMER = 'مشتری',
+    SUPPLIER = 'تأمین‌کننده',
+}
+
+export interface Contact {
   id: number;
   name: string;
+  roles: ContactRole[];
   contactInfo: string;
   phone?: string;
   address?: string;
+  // Customer specific
+  job?: string;
+  // Supplier specific
   activityType?: string;
 }
 
@@ -82,15 +91,6 @@ export interface ProductionLog {
     employeeId: number;
     date: string;
     hoursSpent: number;
-}
-
-export interface Customer {
-  id: number;
-  name: string;
-  contactInfo: string;
-  phone?: string;
-  address?: string;
-  job?: string;
 }
 
 export interface OrderItem {

@@ -8,6 +8,40 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/jspdf@latest/dist/jspdf.umd.min.js"></script>
     <script src="https://unpkg.com/jspdf-autotable@latest/dist/jspdf.plugin.autotable.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/react-modern-persian-datepicker/lib/DatePicker.css"/>
+    <style>
+      /* Custom styles for the date picker to match the dark theme */
+      .DatePicker__calendarContainer {
+        background-color: #374151 !important; /* surface */
+        border-color: #4b5563 !important; /* gray-600 */
+      }
+      .DatePicker__monthArrow,
+      .DatePicker__monthText,
+      .DatePicker__yearText,
+      .Calendar__day {
+        color: #f3f4f6 !important; /* on-surface */
+      }
+       .DatePicker__input {
+        color: #f3f4f6 !important;
+       }
+      .Calendar__day:hover {
+        background-color: #4b5563 !important; /* gray-600 */
+      }
+      .Calendar__day.-selected, .Calendar__day.-selectedStart, .Calendar__day.-selectedEnd {
+        background-color: #14b8a6 !important; /* primary */
+        color: white !important;
+      }
+      .Calendar__day.-today {
+        border: 1px solid #14b8a6 !important;
+        color: #14b8a6 !important;
+      }
+       .Calendar__weekDay {
+        color: #9ca3af !important; /* on-surface-secondary */
+      }
+      .DatePicker__calendarHeader > span {
+         color: #f3f4f6 !important;
+      }
+    </style>
     <script>
       tailwind.config = {
         darkMode: 'class',
@@ -32,7 +66,9 @@
     "react-dom/": "https://esm.sh/react-dom@^19.1.1/",
     "react/": "https://esm.sh/react@^19.1.1/",
     "react": "https://esm.sh/react@^19.1.1",
-    "recharts": "https://esm.sh/recharts@^3.1.2"
+    "recharts": "https://esm.sh/recharts@^3.1.2",
+    "react-modern-persian-datepicker": "https://esm.sh/react-modern-persian-datepicker@3.3.1",
+    "jalaali-js": "https://esm.sh/jalaali-js@1.2.6"
   }
 }
 </script>

@@ -12,7 +12,7 @@ const Sidebar: React.FC<SidebarProps> = ({ view, setView }) => {
     { id: 'dashboard', label: 'داشبورد', icon: <DashboardIcon /> },
     { id: 'employees', label: 'کارکنان', icon: <EmployeeIcon /> },
     { id: 'suppliers_customers', label: 'مخاطبین', icon: <UsersGroupIcon /> },
-    { id: 'purchases', label: 'خریدها', icon: <PurchasesIcon /> },
+    { id: 'purchases', label: 'فاکتور خریدها', icon: <PurchasesIcon /> },
     { id: 'inventory', label: 'انبار', icon: <InventoryIcon /> },
     { id: 'assembly', label: 'مونتاژ', icon: <AssemblyIcon /> },
     { id: 'orders', label: 'سفارشات و فروش', icon: <OrdersIcon /> },

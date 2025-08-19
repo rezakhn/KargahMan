@@ -5,6 +5,7 @@ import Button from './shared/Button.tsx';
 import Modal from './shared/Modal.tsx';
 import { AddIcon, EditIcon, TrashIcon } from './icons/Icons.tsx';
 import EmptyState from './shared/EmptyState.tsx';
+import PersianDatePicker from './shared/PersianDatePicker.tsx';
 
 const formatDateShamsi = (isoDate: string): string => {
     if (!isoDate) return '';
@@ -133,7 +134,11 @@ const Expenses: React.FC<ExpensesProps> = ({ expenses, onAddExpense, onEditExpen
                         </div>
                         <div>
                             <label htmlFor="date" className="block text-sm font-medium text-on-surface-secondary mb-1">تاریخ</label>
-                            <input type="date" id="date" name="date" value={formState.date} onChange={handleFormChange} className="w-full bg-gray-800 border border-gray-600 rounded-md px-3 py-2" />
+                             <PersianDatePicker
+                                value={formState.date}
+                                onChange={date => setFormState(prev => ({...prev, date: date}))}
+                                inputId="date"
+                            />
                         </div>
                     </div>
                      <div>

@@ -6,6 +6,7 @@ import Card from './shared/Card.tsx';
 import Button from './shared/Button.tsx';
 import { DownloadIcon } from './icons/Icons.tsx';
 import { VazirmatnFont } from './VazirFont.ts';
+import PersianDatePicker from './shared/PersianDatePicker.tsx';
 
 declare global {
   interface Window {
@@ -203,11 +204,19 @@ const Reports: React.FC<ReportsProps> = ({ data, employees, dateRange, onDateRan
                 <div className="flex flex-col sm:flex-row flex-wrap gap-4 items-center">
                      <div>
                         <label htmlFor="startDate" className="block text-sm font-medium text-on-surface-secondary mb-1">تاریخ شروع</label>
-                        <input type="date" id="startDate" value={dateRange.start} onChange={e => onDateRangeChange({...dateRange, start: e.target.value})} className="bg-gray-800 border border-gray-600 rounded-md px-3 py-2" />
+                        <PersianDatePicker
+                            value={dateRange.start}
+                            onChange={date => onDateRangeChange({...dateRange, start: date})}
+                            inputId="startDate"
+                        />
                     </div>
                      <div>
                         <label htmlFor="endDate" className="block text-sm font-medium text-on-surface-secondary mb-1">تاریخ پایان</label>
-                        <input type="date" id="endDate" value={dateRange.end} onChange={e => onDateRangeChange({...dateRange, end: e.target.value})} className="bg-gray-800 border border-gray-600 rounded-md px-3 py-2" />
+                        <PersianDatePicker
+                            value={dateRange.end}
+                            onChange={date => onDateRangeChange({...dateRange, end: date})}
+                            inputId="endDate"
+                        />
                     </div>
                     <div className="pt-0 sm:pt-6">
                         <Button variant="secondary" size="sm" onClick={() => onDateRangeChange({start: '', end: ''})}>پاک کردن فیلتر</Button>

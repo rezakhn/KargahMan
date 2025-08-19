@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import type { Supplier, Customer, SalesOrder, Part } from '../types.ts';
-import { OrderStatus } from '../types.ts';
+import type { Contact, SalesOrder, Part } from '../types.ts';
+import { OrderStatus, ContactRole } from '../types.ts';
 import Card from './shared/Card.tsx';
 import Button from './shared/Button.tsx';
 import Modal from './shared/Modal.tsx';
@@ -27,7 +27,7 @@ const getStatusChip = (status: OrderStatus) => {
 };
 
 interface CustomerHistoryModalProps {
-    customer: Customer;
+    customer: Contact;
     orders: SalesOrder[];
     partsMap: Map<number, Part>;
     onClose: () => void;
@@ -73,33 +73,37 @@ const CustomerHistoryModal: React.FC<CustomerHistoryModalProps> = ({ customer, o
 
 
 interface SuppliersCustomersProps {
-    suppliers: Supplier[];
-    customers: Customer[];
+    contacts: Contact[];
     orders: SalesOrder[];
     partsMap: Map<number, Part>;
-    onAddSupplier: (supplier: Omit<Supplier, 'id'>) => void;
-    onEditSupplier: (supplier: Supplier) => void;
-    onDeleteSupplier: (id: number) => void;
-    onAddCustomer: (customer: Omit<Customer, 'id'>) => void;
-    onEditCustomer: (customer: Customer) => void;
-    onDeleteCustomer: (id: number) => void;
+    onAddContact: (contact: Omit<Contact, 'id'>) => void;
+    onEditContact: (contact: Contact) => void;
+    onDeleteContact: (id: number) => void;
 }
 
-type ModalType = 'ADD_SUPPLIER' | 'EDIT_SUPPLIER' | 'ADD_CUSTOMER' | 'EDIT_CUSTOMER';
+type ModalType = 'ADD' | 'EDIT';
 
 const SuppliersCustomers: React.FC<SuppliersCustomersProps> = (props) => {
-    const { suppliers, customers, orders, partsMap, onAddSupplier, onEditSupplier, onDeleteSupplier, onAddCustomer, onEditCustomer, onDeleteCustomer } = props;
+    const { contacts, orders, partsMap, onAddContact, onEditContact, onDeleteContact } = props;
     
-    const [modal, setModal] = useState<{ type: ModalType; data: Supplier | Customer | null } | null>(null);
-    const [historyModalCustomer, setHistoryModalCustomer] = useState<Customer | null>(null);
+    const [modal, setModal] = useState<{ type: ModalType; data: Contact | null } | null>(null);
+    const [historyModalCustomer, setHistoryModalCustomer] = useState<Contact | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
 
-    const initialFormState = { name: '', contactInfo: '', phone: '', address: '', job: '', activityType: '' };
+    const initialFormState = {
+        name: '',
+        contactInfo: '',
+        phone: '',
+        address: '',
+        job: '',
+        activityType: '',
+        roles: [] as ContactRole[]
+    };
     const [formState, setFormState] = useState(initialFormState);
 
     useEffect(() => {
         if (modal?.data) {
-            const data = modal.data as any;
+            const data = modal.data;
             setFormState({
                 name: data.name || '',
                 contactInfo: data.contactInfo || '',
@@ -107,13 +111,14 @@ const SuppliersCustomers: React.FC<SuppliersCustomersProps> = (props) => {
                 address: data.address || '',
                 job: data.job || '',
                 activityType: data.activityType || '',
+                roles: data.roles || [],
             });
         } else {
             setFormState(initialFormState);
         }
     }, [modal]);
     
-    const openModal = (type: ModalType, data: Supplier | Customer | null = null) => {
+    const openModal = (type: ModalType, data: Contact | null = null) => {
         setModal({ type, data });
     };
 
@@ -125,69 +130,65 @@ const SuppliersCustomers: React.FC<SuppliersCustomersProps> = (props) => {
         const { name, value } = e.target;
         setFormState(prev => ({...prev, [name]: value}));
     };
+    
+    const handleRoleChange = (role: ContactRole) => {
+        setFormState(prev => {
+            const newRoles = prev.roles.includes(role)
+                ? prev.roles.filter(r => r !== role)
+                : [...prev.roles, role];
+            return { ...prev, roles: newRoles };
+        });
+    };
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        if (!modal) return;
+        if (!modal || formState.roles.length === 0) {
+            alert("لطفاً حداقل یک نقش برای مخاطب انتخاب کنید.");
+            return;
+        }
         
-        const commonPayload = {
+        const payload: Omit<Contact, 'id'> = {
             name: formState.name,
             contactInfo: formState.contactInfo,
             phone: formState.phone,
             address: formState.address,
+            roles: formState.roles,
+            job: formState.roles.includes(ContactRole.CUSTOMER) ? formState.job : '',
+            activityType: formState.roles.includes(ContactRole.SUPPLIER) ? formState.activityType : '',
         };
 
-        switch (modal.type) {
-            case 'ADD_SUPPLIER':
-                onAddSupplier({ ...commonPayload, activityType: formState.activityType });
-                break;
-            case 'EDIT_SUPPLIER':
-                onEditSupplier({ ...modal.data as Supplier, ...commonPayload, activityType: formState.activityType });
-                break;
-            case 'ADD_CUSTOMER':
-                onAddCustomer({ ...commonPayload, job: formState.job });
-                break;
-            case 'EDIT_CUSTOMER':
-                onEditCustomer({ ...modal.data as Customer, ...commonPayload, job: formState.job });
-                break;
+        if (modal.type === 'EDIT') {
+            onEditContact({ ...(modal.data as Contact), ...payload });
+        } else {
+            onAddContact(payload);
         }
         closeModal();
     };
     
     const getModalTitle = () => {
         if (!modal) return '';
-        switch (modal.type) {
-            case 'ADD_SUPPLIER': return 'افزودن تأمین‌کننده';
-            case 'EDIT_SUPPLIER': return 'ویرایش تأمین‌کننده';
-            case 'ADD_CUSTOMER': return 'افزودن مشتری';
-            case 'EDIT_CUSTOMER': return 'ویرایش مشتری';
-        }
+        return modal.type === 'ADD' ? 'افزودن مخاطب' : 'ویرایش مخاطب';
     }
 
-    const filteredSuppliers = useMemo(() => {
-        if (!searchTerm) return suppliers;
+    const filteredContacts = useMemo(() => {
+        if (!searchTerm) return contacts;
         const lowercasedFilter = searchTerm.toLowerCase();
-        return suppliers.filter(s =>
-            Object.values(s).some(value => 
+        return contacts.filter(c =>
+            Object.values(c).some(value => 
                 String(value).toLowerCase().includes(lowercasedFilter)
             )
         );
-    }, [suppliers, searchTerm]);
-
-    const filteredCustomers = useMemo(() => {
-        if (!searchTerm) return customers;
-        const lowercasedFilter = searchTerm.toLowerCase();
-        return customers.filter(c =>
-             Object.values(c).some(value => 
-                String(value).toLowerCase().includes(lowercasedFilter)
-            )
-        );
-    }, [customers, searchTerm]);
+    }, [contacts, searchTerm]);
 
 
     return (
         <div>
-            <h1 className="text-3xl font-bold mb-6 text-on-surface">مخاطبین</h1>
+            <div className="flex justify-between items-center mb-6">
+                <h1 className="text-3xl font-bold text-on-surface">مخاطبین</h1>
+                <Button icon={<AddIcon />} onClick={() => openModal('ADD')}>
+                    افزودن مخاطب
+                </Button>
+            </div>
              <div className="mb-6">
                 <input
                     type="text"
@@ -197,100 +198,48 @@ const SuppliersCustomers: React.FC<SuppliersCustomersProps> = (props) => {
                     className="w-full bg-gray-800 border border-gray-600 rounded-md px-4 py-2 focus:ring-primary focus:border-primary"
                 />
             </div>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {/* Suppliers Section */}
-                <div>
-                    <div className="flex justify-between items-center mb-4">
-                        <h2 className="text-2xl font-bold text-on-surface">تأمین‌کنندگان</h2>
-                        <Button icon={<AddIcon />} size="sm" onClick={() => openModal('ADD_SUPPLIER')}>
-                            تأمین‌کننده جدید
-                        </Button>
+            
+            <Card>
+                {contacts.length > 0 ? (
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-right">
+                            <thead>
+                                <tr className="border-b border-gray-600">
+                                    <th className="px-4 py-3">نام</th>
+                                    <th className="px-4 py-3">نقش</th>
+                                    <th className="px-4 py-3">شماره تماس</th>
+                                    <th className="px-4 py-3">اطلاعات دیگر</th>
+                                    <th className="px-4 py-3">اقدامات</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {filteredContacts.map(c => (
+                                    <tr key={c.id} className="border-b border-gray-700 hover:bg-gray-600/50">
+                                        <td className="px-4 py-2 font-medium">{c.name}</td>
+                                        <td className="px-4 py-2 text-sm">{c.roles.join('، ')}</td>
+                                        <td className="px-4 py-2 font-mono">{c.phone || '-'}</td>
+                                        <td className="px-4 py-2 text-sm text-on-surface-secondary">{c.job || c.activityType || '-'}</td>
+                                        <td className="px-4 py-2 flex items-center space-x-2 space-x-reverse">
+                                            {c.roles.includes(ContactRole.CUSTOMER) && (
+                                                <button onClick={() => setHistoryModalCustomer(c)} className="p-1 text-on-surface-secondary hover:text-blue-400" title="تاریخچه سفارشات"><ClipboardDocumentListIcon className="w-5 h-5"/></button>
+                                            )}
+                                            <button onClick={() => openModal('EDIT', c)} className="p-1 text-on-surface-secondary hover:text-primary" title="ویرایش"><EditIcon className="w-5 h-5"/></button>
+                                            <button onClick={() => onDeleteContact(c.id)} className="p-1 text-on-surface-secondary hover:text-red-500" title="حذف"><TrashIcon className="w-5 h-5"/></button>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                        {filteredContacts.length === 0 && searchTerm && <p className="text-center p-4 text-on-surface-secondary">موردی با این مشخصات یافت نشد.</p>}
                     </div>
-                    <Card>
-                        {suppliers.length > 0 ? (
-                            <div className="overflow-x-auto">
-                                <table className="w-full text-right">
-                                    <thead>
-                                        <tr className="border-b border-gray-600">
-                                            <th className="px-4 py-3">نام</th>
-                                            <th className="px-4 py-3">شماره تماس</th>
-                                            <th className="px-4 py-3">نوع فعالیت</th>
-                                            <th className="px-4 py-3">اقدامات</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {filteredSuppliers.map(s => (
-                                            <tr key={s.id} className="border-b border-gray-700 hover:bg-gray-600/50">
-                                                <td className="px-4 py-2 font-medium">{s.name}</td>
-                                                <td className="px-4 py-2 font-mono">{s.phone || '-'}</td>
-                                                <td className="px-4 py-2">{s.activityType || '-'}</td>
-                                                <td className="px-4 py-2 flex items-center space-x-2 space-x-reverse">
-                                                    <button onClick={() => openModal('EDIT_SUPPLIER', s)} className="p-1 text-on-surface-secondary hover:text-primary"><EditIcon className="w-5 h-5"/></button>
-                                                    <button onClick={() => onDeleteSupplier(s.id)} className="p-1 text-on-surface-secondary hover:text-red-500"><TrashIcon className="w-5 h-5"/></button>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                                {filteredSuppliers.length === 0 && searchTerm && <p className="text-center p-4 text-on-surface-secondary">موردی با این مشخصات یافت نشد.</p>}
-                            </div>
-                        ) : (
-                             <EmptyState
-                                title="هیچ تأمین‌کننده‌ای یافت نشد"
-                                message="برای ثبت فاکتورهای خرید، ابتدا تأمین‌کنندگان خود را اضافه کنید."
-                                action={<Button icon={<AddIcon />} size="sm" onClick={() => openModal('ADD_SUPPLIER')}>افزودن تأمین‌کننده</Button>}
-                            />
-                        )}
-                    </Card>
-                </div>
-                
-                {/* Customers Section */}
-                <div>
-                    <div className="flex justify-between items-center mb-4">
-                        <h2 className="text-2xl font-bold text-on-surface">مشتریان</h2>
-                         <Button icon={<AddIcon />} size="sm" onClick={() => openModal('ADD_CUSTOMER')}>
-                            مشتری جدید
-                        </Button>
-                    </div>
-                     <Card>
-                        {customers.length > 0 ? (
-                            <div className="overflow-x-auto">
-                                <table className="w-full text-right">
-                                    <thead>
-                                        <tr className="border-b border-gray-600">
-                                            <th className="px-4 py-3">نام</th>
-                                            <th className="px-4 py-3">شماره تماس</th>
-                                            <th className="px-4 py-3">شغل</th>
-                                            <th className="px-4 py-3">اقدامات</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {filteredCustomers.map(c => (
-                                            <tr key={c.id} className="border-b border-gray-700 hover:bg-gray-600/50">
-                                                <td className="px-4 py-2 font-medium">{c.name}</td>
-                                                <td className="px-4 py-2 font-mono">{c.phone || '-'}</td>
-                                                <td className="px-4 py-2">{c.job || '-'}</td>
-                                                <td className="px-4 py-2 flex items-center space-x-2 space-x-reverse">
-                                                    <button onClick={() => setHistoryModalCustomer(c)} className="p-1 text-on-surface-secondary hover:text-blue-400" title="تاریخچه سفارشات"><ClipboardDocumentListIcon className="w-5 h-5"/></button>
-                                                    <button onClick={() => openModal('EDIT_CUSTOMER', c)} className="p-1 text-on-surface-secondary hover:text-primary" title="ویرایش"><EditIcon className="w-5 h-5"/></button>
-                                                    <button onClick={() => onDeleteCustomer(c.id)} className="p-1 text-on-surface-secondary hover:text-red-500" title="حذف"><TrashIcon className="w-5 h-5"/></button>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                                 {filteredCustomers.length === 0 && searchTerm && <p className="text-center p-4 text-on-surface-secondary">موردی با این مشخصات یافت نشد.</p>}
-                            </div>
-                         ) : (
-                             <EmptyState
-                                title="هیچ مشتری یافت نشد"
-                                message="برای ثبت سفارشات فروش، ابتدا مشتریان خود را اضافه کنید."
-                                action={<Button icon={<AddIcon />} size="sm" onClick={() => openModal('ADD_CUSTOMER')}>افزودن مشتری</Button>}
-                            />
-                        )}
-                    </Card>
-                </div>
-            </div>
+                ) : (
+                     <EmptyState
+                        title="هیچ مخاطبی یافت نشد"
+                        message="برای شروع، اولین مشتری یا تأمین‌کننده خود را اضافه کنید."
+                        action={<Button icon={<AddIcon />} onClick={() => openModal('ADD')}>افزودن مخاطب</Button>}
+                    />
+                )}
+            </Card>
             
             <Modal title={getModalTitle()} isOpen={!!modal} onClose={closeModal}>
                 <form onSubmit={handleSubmit} className="space-y-4">
@@ -305,20 +254,33 @@ const SuppliersCustomers: React.FC<SuppliersCustomersProps> = (props) => {
                         </div>
                     </div>
                      <div>
+                        <label className="block text-sm font-medium text-on-surface-secondary mb-2">نقش مخاطب *</label>
+                        <div className="flex gap-4 p-3 bg-gray-800 rounded-md">
+                             <label className="flex items-center">
+                                <input type="checkbox" checked={formState.roles.includes(ContactRole.CUSTOMER)} onChange={() => handleRoleChange(ContactRole.CUSTOMER)} className="rounded bg-gray-700 border-gray-600 text-primary focus:ring-primary" />
+                                <span className="mr-2 text-on-surface">مشتری</span>
+                             </label>
+                             <label className="flex items-center">
+                                <input type="checkbox" checked={formState.roles.includes(ContactRole.SUPPLIER)} onChange={() => handleRoleChange(ContactRole.SUPPLIER)} className="rounded bg-gray-700 border-gray-600 text-primary focus:ring-primary" />
+                                <span className="mr-2 text-on-surface">تأمین‌کننده</span>
+                             </label>
+                        </div>
+                    </div>
+                    <div>
                         <label htmlFor="address" className="block text-sm font-medium text-on-surface-secondary mb-1">آدرس</label>
                         <textarea id="address" name="address" value={formState.address} onChange={handleFormChange} rows={2} className="w-full bg-gray-800 border border-gray-600 rounded-md px-3 py-2"></textarea>
                     </div>
 
-                    {modal?.type.includes('CUSTOMER') && (
+                    {formState.roles.includes(ContactRole.CUSTOMER) && (
                         <div>
-                            <label htmlFor="job" className="block text-sm font-medium text-on-surface-secondary mb-1">شغل</label>
+                            <label htmlFor="job" className="block text-sm font-medium text-on-surface-secondary mb-1">شغل (مشتری)</label>
                             <input type="text" id="job" name="job" value={formState.job} onChange={handleFormChange} className="w-full bg-gray-800 border border-gray-600 rounded-md px-3 py-2" />
                         </div>
                     )}
 
-                    {modal?.type.includes('SUPPLIER') && (
+                    {formState.roles.includes(ContactRole.SUPPLIER) && (
                         <div>
-                            <label htmlFor="activityType" className="block text-sm font-medium text-on-surface-secondary mb-1">نوع فعالیت</label>
+                            <label htmlFor="activityType" className="block text-sm font-medium text-on-surface-secondary mb-1">نوع فعالیت (تأمین‌کننده)</label>
                             <input type="text" id="activityType" name="activityType" value={formState.activityType} onChange={handleFormChange} className="w-full bg-gray-800 border border-gray-600 rounded-md px-3 py-2" />
                         </div>
                     )}

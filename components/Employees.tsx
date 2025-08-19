@@ -7,6 +7,9 @@ import Modal from './shared/Modal.tsx';
 import { AddIcon, EditIcon, TrashIcon, CalendarIcon, ChevronLeftIcon, ChevronRightIcon, CalculatorIcon } from './icons/Icons.tsx';
 import EmptyState from './shared/EmptyState.tsx';
 import { VazirmatnFont } from './VazirFont.ts';
+import PersianDatePicker from './shared/PersianDatePicker.tsx';
+import { getShamsiMonthStartEnd, getTodayGregorian } from './shared/dateConverter.ts';
+import jalaali from 'jalaali-js';
 
 declare global {
   interface Window {
@@ -39,9 +42,10 @@ const SalaryCalculationModal: React.FC<SalaryModalProps> = ({ employee, workLogs
 
     useEffect(() => {
         const today = new Date();
-        const firstDay = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
-        const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0).toISOString().split('T')[0];
-        setDateRange({ start: firstDay, end: lastDay });
+        const { start, end } = getShamsiMonthStartEnd(today);
+        if(start && end) {
+            setDateRange({ start, end });
+        }
     }, []);
 
     const salaryData = useMemo(() => {
@@ -171,7 +175,7 @@ const SalaryCalculationModal: React.FC<SalaryModalProps> = ({ employee, workLogs
         }
         onPaySalary({
             employeeId: employee.id,
-            paymentDate: new Date().toISOString().split('T')[0],
+            paymentDate: getTodayGregorian(),
             amount: paymentAmount,
             periodStart: dateRange.start,
             periodEnd: dateRange.end,
@@ -189,11 +193,11 @@ const SalaryCalculationModal: React.FC<SalaryModalProps> = ({ employee, workLogs
                         <div className="flex flex-wrap gap-4 items-center p-4 bg-gray-800 rounded-lg">
                             <div>
                                 <label htmlFor="startDate" className="block text-sm font-medium text-on-surface-secondary mb-1">تاریخ شروع</label>
-                                <input type="date" id="startDate" value={dateRange.start} onChange={e => setDateRange({...dateRange, start: e.target.value})} className="bg-gray-700 border border-gray-600 rounded-md px-3 py-2" />
+                                <PersianDatePicker value={dateRange.start} onChange={date => setDateRange({...dateRange, start: date})} inputId="startDate" />
                             </div>
                             <div>
                                 <label htmlFor="endDate" className="block text-sm font-medium text-on-surface-secondary mb-1">تاریخ پایان</label>
-                                <input type="date" id="endDate" value={dateRange.end} onChange={e => setDateRange({...dateRange, end: e.target.value})} className="bg-gray-700 border border-gray-600 rounded-md px-3 py-2" />
+                                <PersianDatePicker value={dateRange.end} onChange={date => setDateRange({...dateRange, end: date})} inputId="endDate" />
                             </div>
                         </div>
                     </div>
@@ -344,13 +348,17 @@ const Employees: React.FC<EmployeesProps> = (props) => {
     const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
     const [editingWorkLog, setEditingWorkLog] = useState<WorkLog | null>(null);
     
-    const [currentMonth, setCurrentMonth] = useState(new Date());
-    const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+    const [currentShamsiMonth, setCurrentShamsiMonth] = useState(() => {
+        const today = new Date();
+        const { jy, jm } = jalaali.toJalaali(today.getFullYear(), today.getMonth() + 1, today.getDate());
+        return { year: jy, month: jm };
+    });
+    const [selectedDate, setSelectedDate] = useState(getTodayGregorian());
 
     const initialNewEmployeeState: Omit<Employee, 'id'> = { name: '', payType: PayType.HOURLY, dailyRate: 0, hourlyRate: 0, overtimeRate: 0 };
     const [employeeForm, setEmployeeForm] = useState(initialNewEmployeeState);
     
-    const initialWorkLogState = { date: new Date().toISOString().split('T')[0], overtimeHours: 0, hoursWorked: 8, workedDay: true, description: '' };
+    const initialWorkLogState = { date: getTodayGregorian(), overtimeHours: 0, hoursWorked: 8, workedDay: true, description: '' };
     const [workLogForm, setWorkLogForm] = useState(initialWorkLogState);
     
     const openWorkLogManager = (employee: Employee) => {
@@ -378,8 +386,10 @@ const Employees: React.FC<EmployeesProps> = (props) => {
     
     useEffect(() => {
         if (isWorkLogManagerOpen && selectedEmployee) {
-            setSelectedDate(new Date().toISOString().split('T')[0]);
-            setCurrentMonth(new Date());
+            setSelectedDate(getTodayGregorian());
+            const today = new Date();
+            const { jy, jm } = jalaali.toJalaali(today.getFullYear(), today.getMonth() + 1, today.getDate());
+            setCurrentShamsiMonth({ year: jy, month: jm });
         }
     }, [isWorkLogManagerOpen, selectedEmployee]);
 
@@ -456,15 +466,32 @@ const Employees: React.FC<EmployeesProps> = (props) => {
         const logs = workLogs.filter(l => l.employeeId === selectedEmployee.id);
         return new Map(logs.map(l => [l.date, l]));
     }, [workLogs, selectedEmployee]);
+    
+    const changeMonth = (amount: number) => {
+        setCurrentShamsiMonth(prev => {
+            let newMonth = prev.month + amount;
+            let newYear = prev.year;
+            if (newMonth > 12) {
+                newMonth = 1;
+                newYear++;
+            }
+            if (newMonth < 1) {
+                newMonth = 12;
+                newYear--;
+            }
+            return { year: newYear, month: newMonth };
+        });
+    };
 
     const renderCalendar = () => {
-        const year = currentMonth.getFullYear();
-        const month = currentMonth.getMonth();
-        const monthName = new Intl.DateTimeFormat('fa-IR', { month: 'long', year: 'numeric' }).format(currentMonth);
+        const { year, month } = currentShamsiMonth;
+        
+        const gDateForMonth = jalaali.toGregorian(year, month, 15);
+        const monthName = new Intl.DateTimeFormat('fa-IR', { month: 'long', year: 'numeric' }).format(new Date(gDateForMonth.gy, gDateForMonth.gm - 1, gDateForMonth.gd));
 
-        const firstDayOfMonth = new Date(year, month, 1);
-        const lastDayOfMonth = new Date(year, month + 1, 0);
-        const daysInMonth = lastDayOfMonth.getDate();
+        const daysInMonth = jalaali.jalaaliMonthLength(year, month);
+        const firstDayGregorian = jalaali.toGregorian(year, month, 1);
+        const firstDayOfMonth = new Date(firstDayGregorian.gy, firstDayGregorian.gm - 1, firstDayGregorian.gd);
         const startDayOfWeek = firstDayOfMonth.getDay(); // Sunday: 0, Saturday: 6
         
         const offset = (startDayOfWeek + 1) % 7; // Adjust for Saturday start
@@ -474,18 +501,30 @@ const Employees: React.FC<EmployeesProps> = (props) => {
         const days = Array.from({ length: offset }, (_, i) => <div key={`empty-${i}`}></div>);
         
         for (let day = 1; day <= daysInMonth; day++) {
-            const date = new Date(year, month, day);
-            const isoDate = date.toISOString().split('T')[0];
-            const hasLog = employeeLogsByDate.has(isoDate);
+            const gDate = jalaali.toGregorian(year, month, day);
+            const isoDate = `${gDate.gy}-${String(gDate.gm).padStart(2, '0')}-${String(gDate.gd).padStart(2, '0')}`;
+            const logForDay = employeeLogsByDate.get(isoDate);
+            const hasLog = !!logForDay;
             const isSelected = isoDate === selectedDate;
-            const isToday = isoDate === new Date().toISOString().split('T')[0];
+            const isToday = isoDate === getTodayGregorian();
             
+            let isAbsent = false;
+            if (logForDay && selectedEmployee) {
+                if (selectedEmployee.payType === PayType.DAILY && logForDay.workedDay === false) {
+                    isAbsent = true;
+                } else if (selectedEmployee.payType === PayType.HOURLY && (logForDay.hoursWorked === 0)) {
+                    isAbsent = true;
+                }
+            }
+
             let classes = "p-2 rounded-lg cursor-pointer flex flex-col justify-center items-center h-16 transition-colors duration-200 ";
             
             if (isSelected) {
                 classes += "bg-primary text-white";
             } else {
-                if (hasLog) {
+                if (isAbsent) {
+                    classes += "bg-yellow-600/30 hover:bg-yellow-600/50";
+                } else if (hasLog) {
                     classes += "bg-primary/20 hover:bg-primary/40";
                 } else if (isToday) {
                     classes += "bg-gray-600/50 hover:bg-gray-600";
@@ -504,9 +543,9 @@ const Employees: React.FC<EmployeesProps> = (props) => {
         return (
             <div className="flex-grow">
                 <div className="flex justify-between items-center mb-4">
-                    <Button variant="secondary" size="sm" onClick={() => setCurrentMonth(new Date(year, month - 1, 1))} icon={<ChevronRightIcon className="w-4 h-4" />}></Button>
+                    <Button variant="secondary" size="sm" onClick={() => changeMonth(-1)} icon={<ChevronRightIcon className="w-4 h-4" />}></Button>
                     <h3 className="text-lg font-bold">{monthName}</h3>
-                    <Button variant="secondary" size="sm" onClick={() => setCurrentMonth(new Date(year, month + 1, 1))} icon={<ChevronLeftIcon className="w-4 h-4" />}></Button>
+                    <Button variant="secondary" size="sm" onClick={() => changeMonth(1)} icon={<ChevronLeftIcon className="w-4 h-4" />}></Button>
                 </div>
                 <div className="grid grid-cols-7 gap-2 text-center text-on-surface-secondary mb-2">
                     {weekDays.map(d => <div key={d}>{d}</div>)}
@@ -542,7 +581,7 @@ const Employees: React.FC<EmployeesProps> = (props) => {
                                         <td className="px-4 py-2 flex items-center space-x-2 space-x-reverse flex-wrap gap-2">
                                             <button onClick={() => openEditModal(emp)} className="p-1 text-on-surface-secondary hover:text-primary" title="ویرایش"><EditIcon className="w-5 h-5"/></button>
                                             <button onClick={() => onDeleteEmployee(emp.id)} className="p-1 text-on-surface-secondary hover:text-red-500" title="حذف"><TrashIcon className="w-5 h-5"/></button>
-                                            <button onClick={() => setSalaryModalEmployee(emp)} className="p-1 text-on-surface-secondary hover:text-green-500" title="محاسبه حقوق"><CalculatorIcon className="w-5 h-5"/></button>
+                                            <Button size="sm" variant="secondary" icon={<CalculatorIcon />} onClick={() => setSalaryModalEmployee(emp)}>محاسبه حقوق</Button>
                                             <Button size="sm" icon={<CalendarIcon />} onClick={() => openWorkLogManager(emp)}>مدیریت کارکرد</Button>
                                         </td>
                                     </tr>

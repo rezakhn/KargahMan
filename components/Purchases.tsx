@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import type { PurchaseInvoice, Supplier, PurchaseItem } from '../types.ts';
+import type { PurchaseInvoice, Contact, PurchaseItem } from '../types.ts';
 import Card from './shared/Card.tsx';
 import Button from './shared/Button.tsx';
 import Modal from './shared/Modal.tsx';
 import { AddIcon, EditIcon, TrashIcon } from './icons/Icons.tsx';
 import EmptyState from './shared/EmptyState.tsx';
+import PersianDatePicker from './shared/PersianDatePicker.tsx';
 
 const formatDateShamsi = (isoDate: string): string => {
     if (!isoDate) return '';
@@ -20,7 +21,7 @@ interface PurchasesProps {
     onAddPurchase: (purchase: Omit<PurchaseInvoice, 'id' | 'totalAmount'>) => void;
     onEditPurchase: (purchase: PurchaseInvoice) => void;
     onDeletePurchase: (purchaseId: number) => void;
-    suppliers: Supplier[];
+    suppliers: Contact[];
 }
 
 const Purchases: React.FC<PurchasesProps> = ({ purchases, onAddPurchase, onEditPurchase, onDeletePurchase, suppliers }) => {
@@ -104,7 +105,7 @@ const Purchases: React.FC<PurchasesProps> = ({ purchases, onAddPurchase, onEditP
     return (
         <div>
             <div className="flex justify-between items-center mb-6">
-                <h1 className="text-3xl font-bold text-on-surface">خریدها</h1>
+                <h1 className="text-3xl font-bold text-on-surface">فاکتور خریدها</h1>
                 <Button icon={<AddIcon />} onClick={openAddModal}>
                     فاکتور خرید جدید
                 </Button>
@@ -161,7 +162,11 @@ const Purchases: React.FC<PurchasesProps> = ({ purchases, onAddPurchase, onEditP
                         </div>
                         <div>
                              <label htmlFor="date" className="block text-sm font-medium text-on-surface-secondary mb-1">تاریخ</label>
-                            <input type="date" id="date" value={formState.date} onChange={e => setFormState(prev => ({...prev, date: e.target.value}))} className="w-full bg-gray-800 border border-gray-600 rounded-md px-3 py-2 focus:ring-primary focus:border-primary" />
+                             <PersianDatePicker
+                                value={formState.date}
+                                onChange={date => setFormState(prev => ({...prev, date: date}))}
+                                inputId="date"
+                            />
                         </div>
                     </div>
 
